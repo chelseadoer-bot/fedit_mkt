@@ -388,6 +388,7 @@ if (AMP) {
     $('#nav-acc-n').textContent = `오늘 ${AC.today_count}명`;
     $('#acc-desc').textContent = `최근 ${AC.days}일 동안 활동한 가입 계정 ${AC.rows.length}개 · ${AC.generated_kst} 기준 (앰플리튜드 데이터는 1~2시간 늦게 반영)`
       + (AC.masked ? ' · 계정 정보는 일부 가려서 표시' : '') + ' · 이 표는 위의 기간 선택과 상관없이 항상 최신';
+    if (AC.missing_days) $('#acc-desc').textContent += ` · 아직 못 받은 날 ${AC.missing_days}일(다음 실행 때 채워짐)`;
     let accF = '전체';
     const F = {'전체': () => true, '오늘 방문': r => r.today, '어제 방문': r => r.yesterday,
                '체험 중': r => r.status.startsWith('체험 중'), '이탈 위험': r => r.status === '이탈 위험',

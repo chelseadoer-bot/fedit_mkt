@@ -273,15 +273,26 @@ def _export_day(day: _date, cache_dir) -> list[dict]:
     if cache.exists() and not fresh:
         with gzip.open(cache, "rt", encoding="utf-8") as f:
             return [json.loads(l) for l in f if l.strip()]
-    r = requests.get(f"{_base()}/api/2/export", params={"start": f"{day:%Y%m%d}T00", "end": f"{day:%Y%m%d}T23"},
-                     auth=(API_KEY, SECRET_KEY), timeout=300)
-    if r.status_code == 404:  # 그날 데이터 없음
+    content, status = None, None
+    for attempt in range(2):
+        try:
+            with requests.get(f"{_base()}/api/2/export",
+                              params={"start": f"{day:%Y%m%d}T00", "end": f"{day:%Y%m%d}T23"},
+                              auth=(API_KEY, SECRET_KEY), timeout=(30, 240), stream=True) as r:
+                status = r.status_code
+                if r.ok:
+                    content = b"".join(r.iter_content(1 << 20))
+                elif status != 404:
+                    raise AmplitudeError(f"export {status}: {r.text[:200]}")
+            break
+        except requests.RequestException:
+            if attempt == 1:
+                raise
+    if status == 404:  # 그날 데이터 없음
         events = []
-    elif not r.ok:
-        raise AmplitudeError(f"export {r.status_code}: {r.text[:200]}")
     else:
         events = []
-        with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+        with zipfile.ZipFile(io.BytesIO(content)) as z:
             for name in z.namelist():
                 if name.endswith(".gz"):
                     for line in gzip.decompress(z.read(name)).decode("utf-8").splitlines():
@@ -316,12 +327,24 @@ def accounts(days: int = 30) -> dict | None:
     from . import config
     cache_dir = config.DATA_DIR / "amp_export"
     today_utc = _dt.now(_tz.utc).date()
-    try:
-        events = []
-        for i in range(days, -1, -1):
-            events += _export_day(today_utc - _td(days=i), cache_dir)
-    except (AmplitudeError, requests.RequestException, zipfile.BadZipFile, ValueError) as e:
-        print(f"  ⚠️ 계정별 활동 조회 실패 — 건너뜀 ({e})")
+    import time as _time
+    budget = float(os.getenv("AMPLITUDE_EXPORT_BUDGET_SEC") or "720")  # 내려받기에 쓸 최대 시간
+    started = _time.monotonic()
+    events, missing = [], []
+    for i in range(days + 1):  # 최근 날짜부터 — 일부만 받아도 오늘·어제 방문은 먼저 보이게
+        day = today_utc - _td(days=i)
+        cached = (cache_dir / f"{day:%Y%m%d}.jsonl.gz").exists() and i >= 2
+        if not cached and _time.monotonic() - started > budget:
+            missing.append(day)
+            continue
+        try:
+            events += _export_day(day, cache_dir)
+        except (AmplitudeError, requests.RequestException, zipfile.BadZipFile, ValueError) as e:
+            missing.append(day)
+            print(f"  ⚠️ {day} 원본 이벤트 받기 실패 — 그날만 건너뜀 ({str(e)[:120]})")
+    if missing:
+        print(f"   못 받은 날 {len(missing)}일 — 다음 실행 때 다시 시도합니다")
+    if not events and missing:
         return None
 
     now = _dt.now(KST)
@@ -389,4 +412,5 @@ def accounts(days: int = 30) -> dict | None:
         })
     rows.sort(key=lambda r: r["last_seen"], reverse=True)
     return {"generated_kst": f"{now:%Y-%m-%d %H:%M}", "days": days, "masked": not SHOW_FULL_ACCOUNT,
+            "missing_days": len(missing),
             "today_count": sum(r["today"] for r in rows), "rows": rows}
