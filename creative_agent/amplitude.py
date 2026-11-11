@@ -84,9 +84,15 @@ def fetch(since: str, until: str) -> dict | None:
         return None
 
 
+# 메타 광고에서 시작했지만 utm_source가 다른 경로 (예: 모바일 광고 → 'PC로 링크 받기' 메일 → PC 가입)
+META_SOURCE_ALIASES = {x.strip().lower() for x in (os.getenv("AMPLITUDE_META_SOURCES") or "lead_mail").split(",") if x.strip()}
+META_SOURCE_NAMES = {"meta", "facebook", "fb", "instagram", "ig", "facebook_ads", "meta_ads", "instagram_ads"}
+
+
 def is_meta(source: str) -> bool:
-    s = source.lower()
-    return any(k in s for k in ("meta", "facebook", "fb", "instagram", "ig"))
+    s = source.strip().lower()
+    return (s in META_SOURCE_NAMES or s in META_SOURCE_ALIASES
+            or s.startswith(("meta", "facebook", "instagram", "fb_", "ig_")))
 
 
 def attach(report: dict, amp: dict | None) -> dict:
@@ -137,7 +143,9 @@ def attach(report: dict, amp: dict | None) -> dict:
     report["amplitude"] = {
         **amp, "meta": meta, "matched_ads": len(matched_keys), "unmatched": unmatched,
         "unmatched_values": unmatched_values,
-        "sources": sorted(({"source": s, **v} for s, v in amp["by_source"].items()),
+        "meta_aliases": sorted(META_SOURCE_ALIASES),
+        "sources": sorted(({"source": s, "is_meta": is_meta(s), "alias": s.strip().lower() in META_SOURCE_ALIASES, **v}
+                           for s, v in amp["by_source"].items()),
                           key=lambda x: -x["signups"]),
     }
     return report

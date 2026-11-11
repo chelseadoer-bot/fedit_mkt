@@ -121,7 +121,8 @@ def main() -> None:
         amp_txt = ""
         if rep.get("amplitude"):
             t = rep["amplitude"]["totals"]
-            amp_txt = (f" · 가입 {t['signups']:.0f} · 체험 {t['trials']:.0f} · 활성화 {t['activated']:.0f}"
+            amp_txt = (f" · 가입 {t['signups']:.0f}(메타 {rep['amplitude']['meta']['signups']:.0f})"
+                       f" · 체험 {t['trials']:.0f} · 활성화 {t['activated']:.0f}"
                        f" (광고와 연결된 소재 {rep['amplitude']['matched_ads']}개)")
         print(f"   {label}: 소재 {rep['total_count']}개, 라벨 {rep['labeled_count']}개{amp_txt}")
         views.append(rep)

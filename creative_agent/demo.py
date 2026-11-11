@@ -95,8 +95,8 @@ def fake_amplitude(rep: dict) -> dict:
         tr = round(su * rnd.uniform(0.4, 0.8))
         by_ad[a["ad_id"]] = {"signups": su, "trials": tr, "activated": round(tr * rnd.uniform(0.2, 0.7))}
     meta = {k: sum(v[k] for v in by_ad.values()) for k in ("signups", "trials", "activated")}
-    by_source = {"meta": meta, "(none)": {"signups": 31, "trials": 20, "activated": 11},
-                 "naver": {"signups": 12, "trials": 8, "activated": 5}, "linkedin": {"signups": 4, "trials": 2, "activated": 1}}
+    by_source = {"meta": dict(meta), "(none)": {"signups": 31, "trials": 20, "activated": 11},
+                 "naver": {"signups": 12, "trials": 8, "activated": 5}, "lead_mail": {"signups": 2, "trials": 1, "activated": 0}, "linkedin": {"signups": 4, "trials": 2, "activated": 1}}
     totals = {k: sum(v[k] for v in by_source.values()) for k in meta}
     return {"events": {"signups": "sign_up", "trials": "trial_started", "activated": "excel_download"},
             "totals": totals, "by_ad": by_ad, "by_source": by_source,

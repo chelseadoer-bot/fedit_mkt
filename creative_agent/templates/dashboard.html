@@ -238,7 +238,7 @@ tbody tr.row:hover{background:var(--line2)}
     </section>
     <section class="card" id="um-card" hidden>
       <h2>소재와 연결되지 않은 utm_content</h2>
-      <div class="desc">앰플리튜드 가입자의 첫 유입 utm_content 중 메타 광고 ID·이름과 일치하지 않는 값 — 메타 URL 매개변수를 <b>utm_content={{ad.id}}</b>로 통일하면 소재별로 이어집니다</div>
+      <div class="desc">앰플리튜드 가입자의 첫 유입 utm_content 중 메타 광고 이름(또는 ID)과 일치하지 않는 값 — 광고가 아닌 경로(예: 인스타 프로필 링크)라면 정상이고, 광고인데 여기 보이면 광고 이름과 utm_content 값이 다른지 확인해 주세요</div>
       <div class="tbl-wrap" style="margin-top:14px"><table id="um-table" style="min-width:480px"></table></div>
     </section>
   </div>
@@ -309,7 +309,8 @@ if (AMP && !ROAS) {
                  [`체험 시작 (${E.trials})`, M.trials, 1], [`활성화 (${E.activated})`, M.activated, 1]];
   const top = Math.max(1, ...steps.map(s => s[1]));
   $('#funnel-card').hidden = false;
-  $('#funnel-desc').textContent = `메타 광고 → 앰플리튜드 (첫 유입 소스가 meta/facebook/instagram인 사용자) · 광고비 ${won(A.spend)}`;
+  const aliasTxt = (AMP.meta_aliases || []).length ? ` + ${AMP.meta_aliases.join(', ')}` : '';
+  $('#funnel-desc').textContent = `메타 광고 → 앰플리튜드 (첫 유입 소스가 meta/facebook/instagram${aliasTxt}인 사용자) · 광고비 ${won(A.spend)}`;
   $('#funnel').innerHTML = steps.map(([l, v, amp], i) => {
     const prev = i ? steps[i-1][1] : 0;
     const conv = i ? (prev ? pct(v / prev, 1) : '—') : '';
@@ -320,7 +321,7 @@ if (AMP && !ROAS) {
   }).join('');
   if (AMP.matched_ads === 0 && M.signups > 0) {
     $('#funnel-warn').hidden = false;
-    $('#funnel-warn').textContent = '메타 유입 가입은 있지만 소재와 연결된 것이 없습니다. 메타 광고 URL 매개변수의 utm_content에 {{ad.id}} 또는 {{ad.name}}을 넣어 주세요.';
+    $('#funnel-warn').textContent = '메타 유입 가입은 있지만 소재와 연결된 것이 없습니다. 메타 광고 URL 매개변수의 utm_content에 {{ad.name}}(광고 이름)이 들어가 있는지 확인해 주세요.';
   }
 }
 
@@ -332,13 +333,19 @@ if (AMP) {
   document.getElementById('channels-wrap').hidden = false;
   const T = AMP.totals;
   $('#ch-desc').textContent = `첫 유입 UTM(${AMP.source_property.replace('gp:','')}) 기준 · 활성화 = 기간 내 ${AMP.events.activated} 사용자`;
-  const rows = AMP.sources.filter(r => r.signups || r.trials || r.activated);
+  const rows = AMP.sources.filter(r => r.signups || r.trials || r.activated)
+                          .sort((a, b) => (b.is_meta - a.is_meta) || (b.signups - a.signups));
+  const M = AMP.meta;
+  const srcName = r => r.source === '(none)' ? '(직접/UTM 없음)'
+    : r.alias && r.source.toLowerCase() === 'lead_mail' ? 'lead_mail (메타 광고 → PC 링크 메일)' : r.source;
   $('#ch-table').innerHTML = `<thead><tr><th class="l">유입 소스</th><th>가입</th><th>비중</th><th>체험 시작</th><th>체험 전환율</th><th>활성화</th><th>활성화율</th></tr></thead><tbody>
-    ${rows.map(r => `<tr><td class="l">${esc(r.source === '(none)' ? '(직접/UTM 없음)' : r.source)}</td><td>${int(r.signups)}</td>
+    ${rows.map(r => `<tr><td class="l">${esc(srcName(r))}${r.is_meta ? ' <span class="tag">메타로 집계</span>' : ''}</td><td>${int(r.signups)}</td>
       <td>${T.signups ? pct(r.signups / T.signups, 1) : '—'}</td><td>${int(r.trials)}</td>
       <td>${r.signups ? pct(r.trials / r.signups, 0) : '—'}</td><td>${int(r.activated)}</td>
       <td>${r.signups ? pct(r.activated / r.signups, 0) : '—'}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">데이터가 없습니다</td></tr>`}
-    <tr class="total"><td class="l">합계</td><td>${int(T.signups)}</td><td>100%</td><td>${int(T.trials)}</td>
+    <tr class="total"><td class="l">메타 광고 합계</td><td>${int(M.signups)}</td><td>${T.signups ? pct(M.signups / T.signups, 1) : '—'}</td><td>${int(M.trials)}</td>
+      <td>${M.signups ? pct(M.trials / M.signups, 0) : '—'}</td><td>${int(M.activated)}</td><td>${M.signups ? pct(M.activated / M.signups, 0) : '—'}</td></tr>
+    <tr class="total"><td class="l">전체 합계</td><td>${int(T.signups)}</td><td>100%</td><td>${int(T.trials)}</td>
       <td>${T.signups ? pct(T.trials / T.signups, 0) : '—'}</td><td>${int(T.activated)}</td><td>${T.signups ? pct(T.activated / T.signups, 0) : '—'}</td></tr></tbody>`;
 }
 
