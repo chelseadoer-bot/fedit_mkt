@@ -236,6 +236,11 @@ tbody tr.row:hover{background:var(--line2)}
       <div class="desc" id="ch-desc"></div>
       <div class="tbl-wrap" style="margin-top:14px"><table id="ch-table"></table></div>
     </section>
+    <section class="card" id="um-card" hidden>
+      <h2>소재와 연결되지 않은 utm_content</h2>
+      <div class="desc">앰플리튜드 가입자의 첫 유입 utm_content 중 메타 광고 ID·이름과 일치하지 않는 값 — 메타 URL 매개변수를 <b>utm_content={{ad.id}}</b>로 통일하면 소재별로 이어집니다</div>
+      <div class="tbl-wrap" style="margin-top:14px"><table id="um-table" style="min-width:480px"></table></div>
+    </section>
   </div>
 
   <div id="comp-wrap" hidden>
@@ -383,6 +388,14 @@ if (AMP) {
     $('#cga-chips').onclick = e => { const b = e.target.closest('[data-b]'); if (b) { cBrand = b.dataset.b; renderGallery(); } };
     renderGallery();
   }
+}
+
+// ── 연결 안 된 utm_content ──
+{
+  const U = AMP && AMP.unmatched_values ? AMP.unmatched_values : [];
+  $('#um-card').hidden = !U.length;
+  if (U.length) $('#um-table').innerHTML = `<thead><tr><th class="l">utm_content 값</th><th>가입</th><th>체험 시작</th><th>활성화</th></tr></thead><tbody>
+    ${U.map(u => `<tr><td class="l">${esc(u.value)}</td><td>${n1(u.signups)}</td><td>${n1(u.trials)}</td><td>${n1(u.activated)}</td></tr>`).join('')}</tbody>`;
 }
 
 // ── 좌측 메뉴: 보고 있는 섹션 강조 (기간을 바꿔 다시 그려도 한 번만 설정) ──

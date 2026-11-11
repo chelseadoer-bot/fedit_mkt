@@ -125,6 +125,10 @@ def main() -> None:
                        f" (광고와 연결된 소재 {rep['amplitude']['matched_ads']}개)")
         print(f"   {label}: 소재 {rep['total_count']}개, 라벨 {rep['labeled_count']}개{amp_txt}")
         views.append(rep)
+    for v in views:  # 소재와 못 이은 utm_content 값 (UTM 설정 점검용)
+        if v["key"] == "30d" and v.get("amplitude") and v["amplitude"]["unmatched_values"]:
+            vals = ", ".join(f"{u['value']}({u['signups']:.0f})" for u in v["amplitude"]["unmatched_values"][:10])
+            print(f"   ⚠️ 소재와 연결 안 된 utm_content (가입 수): {vals}")
     default = next((v for v in views if v["key"] == "30d"), views[-1])
     from . import competitors as comp_mod
     comp = comp_mod.build(con, fake=(a.cmd == "demo"))

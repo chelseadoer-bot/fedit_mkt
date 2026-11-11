@@ -131,8 +131,12 @@ def attach(report: dict, amp: dict | None) -> dict:
             t["cps"] = t["spend"] / t["signups"] if t["signups"] else 0
     meta = {k: sum(v[k] for s, v in amp["by_source"].items() if is_meta(s)) for k in EVENTS}
     unmatched = {k: sum(v[k] for key, v in by_ad.items() if key not in matched_keys and key != "(none)") for k in EVENTS}
+    unmatched_values = sorted(
+        ({"value": key, **v} for key, v in by_ad.items() if key not in matched_keys and key != "(none)" and v["signups"]),
+        key=lambda x: -x["signups"])[:15]
     report["amplitude"] = {
         **amp, "meta": meta, "matched_ads": len(matched_keys), "unmatched": unmatched,
+        "unmatched_values": unmatched_values,
         "sources": sorted(({"source": s, **v} for s, v in amp["by_source"].items()),
                           key=lambda x: -x["signups"]),
     }
