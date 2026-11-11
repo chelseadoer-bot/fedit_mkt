@@ -96,7 +96,9 @@ PC를 켜 두지 않아도 GitHub 서버가 매일 아침(한국시간 5:47경) 
 | `AMPLITUDE_SIGNUP_EVENT` | `sign_up` | 가입 이벤트 |
 | `AMPLITUDE_TRIAL_EVENT` | `trial_started` | 체험 시작 이벤트 |
 | `AMPLITUDE_ACTIVATION_EVENT` | `brand_filter_changed` | 무료체험 **후에** 해야 활성화로 치는 이벤트(브랜드 선택) |
-| `AMPLITUDE_ACTIVATION_WINDOW_DAYS` | `30` | 무료체험 후 며칠 안에 브랜드를 선택해야 활성화로 칠지 |
+| `AMPLITUDE_TRIAL_DAYS` | `5` | 무료체험 기간 — 이 안에 브랜드를 선택해야 활성화 |
+| `AMPLITUDE_PAID_EVENT` | (없음) | 결제 완료 이벤트. 넣으면 '유료 전환' 단계가 생김 |
+| `AMPLITUDE_PAID_WINDOW_DAYS` | `14` | 무료체험 시작 후 며칠 안에 결제해야 유료 전환으로 칠지 |
 | `AMPLITUDE_AD_PROPERTY` | `gp:initial_utm_content` | 광고와 잇는 사용자 속성 |
 | `AMPLITUDE_SOURCE_PROPERTY` | `gp:initial_utm_source` | 유입 채널 사용자 속성 |
 
@@ -104,6 +106,7 @@ PC를 켜 두지 않아도 GitHub 서버가 매일 아침(한국시간 5:47경) 
 - `utm_source`가 `lead_mail`(모바일 광고 → 'PC로 링크 받기' 메일 → PC 가입)인 가입은 메타 가입으로 집계합니다.
   다른 경로도 메타로 묶으려면 GitHub Variables에 `AMPLITUDE_META_SOURCES=lead_mail,다른값`.
 - **활성화 = 무료체험 시작(`trial_started`) 후에 브랜드 선택(`brand_filter_changed`)까지 한 사용자**입니다.
-  앰플리튜드 Funnel API(순서 있음)로, 그 기간에 무료체험을 시작한 사람 중 전환 기간 안에 브랜드를 고른 사람을 셉니다.
+  기준: 무료체험 시작 후 **5일(체험 기간)** 안에 브랜드를 선택. 유료 전환은 결제 이벤트를 지정하면 켜집니다.
+  앰플리튜드 Funnel API(순서 있음)로, 그 기간에 무료체험을 시작한 사람을 기준으로 셉니다.
   무료체험 신청 수도 함께 보여줍니다.
 - 같은 이름의 광고가 여럿이면 가입 수를 광고비 비중으로 나눠 붙입니다.

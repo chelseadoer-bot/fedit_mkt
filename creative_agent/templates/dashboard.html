@@ -186,7 +186,7 @@ tbody tr.row:hover{background:var(--line2)}
   <div class="kpis" id="kpis"></div>
 
   <section class="card" id="funnel-card" hidden>
-    <h2>퍼널 — 광고에서 활성화(체험 후 브랜드 선택)까지</h2>
+    <h2 id="funnel-title">퍼널 — 광고에서 활성화까지</h2>
     <div class="desc" id="funnel-desc"></div>
     <div class="funnel" id="funnel"></div>
     <div class="warn" id="funnel-warn" hidden></div>
@@ -282,6 +282,11 @@ const RATE = D.conversion && D.conversion.is_landing ? '랜딩 도달률' : '전
 const fmtCpa = v => v ? won(v) : '—';
 const AMP = D.amplitude || null;
 const AL = (AMP && AMP.labels) || {signups: '가입', trials: '체험 시작', activated: '활성화'};
+const PAID = !!(AMP && AMP.events && AMP.events.paid);
+const TRIAL_DAYS = (AMP && AMP.trial_days) || 5;
+const AMP_RULE = AMP ? `활성화 = 무료체험 시작 후 ${TRIAL_DAYS}일(체험 기간) 안에 브랜드를 선택한 사람`
+  + (PAID ? ` · 유료 전환 = 무료체험 시작 후 ${AMP.paid_window_days}일 안에 결제한 사람` : '')
+  + ` · 최근 ${TRIAL_DAYS}일 안에 체험을 시작한 사람은 아직 체험 중이라 숫자가 더 늘 수 있어요` : '';
 const n1 = v => (v >= 10 || v === 0 || Number.isInteger(v)) ? int(v) : v.toFixed(1);
 
 // ── 핵심 지표 ──
@@ -297,6 +302,7 @@ const n1 = v => (v >= 10 || v === 0 || Number.isInteger(v)) ? int(v) : v.toFixed
     k.splice(3, 0, ['가입 (메타 유입)', int(M.signups), 1, `전체 채널 ${int(AMP.totals.signups)}명`],
                    ['가입당 비용', fmtCpa(M.signups ? A.spend / M.signups : 0), 1, `무료체험 신청 ${int(M.trials)}명`]);
     k.splice(5, 0, [AL.activated, int(M.activated), 1, `무료체험 ${int(M.trials)}명 중 ${M.trials ? pct(M.activated / M.trials, 0) : '—'}`]);
+    if (PAID) k.splice(6, 0, [AL.paid, int(M.paid), 1, `무료체험 대비 ${M.trials ? pct(M.paid / M.trials, 0) : '—'} · 결제당 ${fmtCpa(M.paid ? A.spend / M.paid : 0)}`]);
   }
   $('#kpis').innerHTML = k.map(([l,v,main,sub]) => `<div class="kpi ${main?'main':''}"><div class="l">${esc(l)}</div><div class="v">${v}</div>${sub?`<div class="s">${esc(sub)}</div>`:''}</div>`).join('');
 })();
@@ -308,13 +314,16 @@ $('#funnel-card').hidden = true; $('#funnel-warn').hidden = true;
 if (AMP && !ROAS) {
   const A = D.account, M = AMP.meta, E = AMP.events;
   const steps = [['링크 클릭', A.clicks], [CONV, A.conversions], [`가입 (${E.signups})`, M.signups, 1],
-                 [`${AL.trials} (${E.trials})`, M.trials, 1], [`${AL.activated}`, M.activated, 1]];
+                 [`${AL.trials} (${E.trials})`, M.trials, 1], [`${AL.activated}`, M.activated, 1],
+                 ...(PAID ? [[`${AL.paid} (${E.paid})`, M.paid, 1]] : [])];
+  $('#funnel-title').textContent = PAID ? '퍼널 — 광고에서 유료 전환까지' : '퍼널 — 광고에서 활성화까지';
+  steps.forEach(s => { s[1] = +s[1] || 0; });
   const top = Math.max(1, ...steps.map(s => s[1]));
   $('#funnel-card').hidden = false;
   const aliasTxt = (AMP.meta_aliases || []).length ? ` + ${AMP.meta_aliases.join(', ')}` : '';
-  $('#funnel-desc').textContent = `메타 광고 → 앰플리튜드 (첫 유입 소스가 meta/facebook/instagram${aliasTxt}인 사용자) · 광고비 ${won(A.spend)}`;
+  $('#funnel-desc').textContent = `메타 광고 → 앰플리튜드 (첫 유입 소스가 meta/facebook/instagram${aliasTxt}인 사용자) · 광고비 ${won(A.spend)} · ${AMP_RULE}`;
   $('#funnel').innerHTML = steps.map(([l, v, amp], i) => {
-    const prev = i ? steps[i-1][1] : 0;
+    const prev = i ? (PAID && i === steps.length - 1 ? M.trials : steps[i-1][1]) : 0;
     const conv = i ? (prev ? pct(v / prev, 1) : '—') : '';
     const cost = v ? won(A.spend / v) : '—';
     return `<div class="fstep ${amp ? 'amp' : ''}"><div>${esc(l)}</div>
@@ -334,21 +343,22 @@ if (AMP) {
   document.getElementById('nav-channels').hidden = false;
   document.getElementById('channels-wrap').hidden = false;
   const T = AMP.totals;
-  $('#ch-desc').textContent = `첫 유입 UTM(${AMP.source_property.replace('gp:','')}) 기준 · 활성화 = 기간 안에 ${AMP.events.trials}를 한 뒤 ${AMP.activation_window_days || 30}일 안에 ${AMP.events.activated}까지 한 사용자 (순서 퍼널)`;
+  $('#ch-desc').textContent = `첫 유입 UTM(${AMP.source_property.replace('gp:','')}) 기준 · ${AMP_RULE}`;
+  const paidCells = r => PAID ? `<td>${int(r.paid || 0)}</td><td>${r.trials ? pct((r.paid || 0) / r.trials, 0) : '—'}</td>` : '';
   const rows = AMP.sources.filter(r => r.signups || r.trials || r.activated)
                           .sort((a, b) => (b.is_meta - a.is_meta) || (b.signups - a.signups));
   const M = AMP.meta;
   const srcName = r => r.source === '(none)' ? '(직접/UTM 없음)'
     : r.alias && r.source.toLowerCase() === 'lead_mail' ? 'lead_mail (메타 광고 → PC 링크 메일)' : r.source;
-  $('#ch-table').innerHTML = `<thead><tr><th class="l">유입 소스</th><th>가입</th><th>비중</th><th>${AL.trials}</th><th>가입→체험</th><th>${AL.activated}</th><th>체험→브랜드 선택</th></tr></thead><tbody>
+  $('#ch-table').innerHTML = `<thead><tr><th class="l">유입 소스</th><th>가입</th><th>비중</th><th>${AL.trials}</th><th>가입→체험</th><th>${AL.activated}</th><th>체험→브랜드 선택</th>${PAID ? `<th>${AL.paid}</th><th>체험→유료</th>` : ''}</tr></thead><tbody>
     ${rows.map(r => `<tr><td class="l">${esc(srcName(r))}${r.is_meta ? ' <span class="tag">메타로 집계</span>' : ''}</td><td>${int(r.signups)}</td>
       <td>${T.signups ? pct(r.signups / T.signups, 1) : '—'}</td><td>${int(r.trials)}</td>
       <td>${r.signups ? pct(r.trials / r.signups, 0) : '—'}</td><td>${int(r.activated)}</td>
-      <td>${r.trials ? pct(r.activated / r.trials, 0) : '—'}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">데이터가 없습니다</td></tr>`}
+      <td>${r.trials ? pct(r.activated / r.trials, 0) : '—'}</td>${paidCells(r)}</tr>`).join('') || `<tr><td colspan="9" class="empty">데이터가 없습니다</td></tr>`}
     <tr class="total"><td class="l">메타 광고 합계</td><td>${int(M.signups)}</td><td>${T.signups ? pct(M.signups / T.signups, 1) : '—'}</td><td>${int(M.trials)}</td>
-      <td>${M.signups ? pct(M.trials / M.signups, 0) : '—'}</td><td>${int(M.activated)}</td><td>${M.trials ? pct(M.activated / M.trials, 0) : '—'}</td></tr>
+      <td>${M.signups ? pct(M.trials / M.signups, 0) : '—'}</td><td>${int(M.activated)}</td><td>${M.trials ? pct(M.activated / M.trials, 0) : '—'}</td>${paidCells(M)}</tr>
     <tr class="total"><td class="l">전체 합계</td><td>${int(T.signups)}</td><td>100%</td><td>${int(T.trials)}</td>
-      <td>${T.signups ? pct(T.trials / T.signups, 0) : '—'}</td><td>${int(T.activated)}</td><td>${T.trials ? pct(T.activated / T.trials, 0) : '—'}</td></tr></tbody>`;
+      <td>${T.signups ? pct(T.trials / T.signups, 0) : '—'}</td><td>${int(T.activated)}</td><td>${T.trials ? pct(T.activated / T.trials, 0) : '—'}</td>${paidCells(T)}</tr></tbody>`;
 }
 
 // ── 경쟁사 광고 ──
@@ -445,11 +455,11 @@ let curDim = dims[0], dimSort = {k:'spend', dir:-1};
 const DCOLS = ROAS
   ? [['value','구분','l'],['count','소재수'],['spend','광고비'],['revenue','광고매출'],['roas','ROAS'],['ctr','CTR'],['cvr','CVR']]
   : [['value','구분','l'],['count','소재수'],['spend','광고비'],['conversions',CONV],['cpa',`${CONV}당 비용`],['cvr',RATE],['ctr','CTR'],
-     ...(AMP ? [['signups','가입'],['cps','가입당 비용'],['trials',AL.trials],['activated',AL.activated]] : [['cpc','CPC']])];
+     ...(AMP ? [['signups','가입'],['cps','가입당 비용'],['trials',AL.trials],['activated',AL.activated],...(PAID ? [['paid',AL.paid]] : [])] : [['cpc','CPC']])];
 const cell = (k, x) => ({count: `${x.count}개`, spend: won(x.spend), revenue: won(x.revenue), roas: pct(x.roas),
   ctr: pct(x.ctr), cvr: pct(x.cvr, ROAS?2:1), conversions: int(x.conversions), cpa: fmtCpa(x.cpa), cpc: won(x.cpc),
   impressions: int(x.impressions), clicks: int(x.clicks), purchases: int(x.purchases),
-  signups: x.signups != null ? n1(x.signups) : '—', cps: fmtCpa(x.cps), activated: x.activated != null ? n1(x.activated) : '—', trials: x.trials != null ? n1(x.trials) : '—'})[k];
+  signups: x.signups != null ? n1(x.signups) : '—', cps: fmtCpa(x.cps), activated: x.activated != null ? n1(x.activated) : '—', trials: x.trials != null ? n1(x.trials) : '—', paid: x.paid != null ? n1(x.paid) : '—'})[k];
 function renderDimChips(){
   $('#dim-chips').innerHTML = dims.map(d => `<button class="chip ${d===curDim?'on':''}" data-d="${esc(d)}">${esc(d)}<b>${D.dimensions[d].length}</b></button>`).join('');
 }
@@ -495,7 +505,7 @@ let diag = '전체', view = 'table', adSort = {k:'spend', dir:-1}, limit = 50, o
 const ACOLS = [['thumb','소재','l'],['name','소재 이름','l'],['diagnosis','진단','l'],['series', ROAS?'ROAS 추이':`일별 ${CONV}`,'l'],
   ...(ROAS ? [['spend','광고비'],['impressions','노출'],['clicks','클릭'],['ctr','CTR'],['purchases','구매'],['roas','ROAS'],['cvr','CVR']]
            : [['spend','광고비'],['impressions','노출'],['clicks','링크 클릭'],['ctr','CTR'],['cpc','CPC'],['conversions',CONV],['cpa',`${CONV}당 비용`],['cvr',RATE],
-              ...(AMP ? [['signups','가입'],['cps','가입당 비용'],['trials',AL.trials],['activated',AL.activated]] : [])])];
+              ...(AMP ? [['signups','가입'],['cps','가입당 비용'],['trials',AL.trials],['activated',AL.activated],...(PAID ? [['paid',AL.paid]] : [])] : [])])];
 const NUMCOLS = ACOLS.slice(4);
 function spark(s){
   const pts = s.map((v,i) => [i,v]).filter(p => p[1] !== null);

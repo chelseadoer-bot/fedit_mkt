@@ -93,13 +93,15 @@ def fake_amplitude(rep: dict) -> dict:
     for a in rep["ads"]:
         su = round(a["conversions"] * rnd.uniform(0.02, 0.12))
         tr = round(su * rnd.uniform(0.4, 0.8))
-        by_ad[a["ad_id"]] = {"signups": su, "trials": tr, "activated": round(tr * rnd.uniform(0.2, 0.7))}
-    meta = {k: sum(v[k] for v in by_ad.values()) for k in ("signups", "trials", "activated")}
-    by_source = {"meta": dict(meta), "(none)": {"signups": 31, "trials": 20, "activated": 11},
-                 "naver": {"signups": 12, "trials": 8, "activated": 5}, "lead_mail": {"signups": 2, "trials": 1, "activated": 0}, "linkedin": {"signups": 4, "trials": 2, "activated": 1}}
+        by_ad[a["ad_id"]] = {"signups": su, "trials": tr, "activated": round(tr * rnd.uniform(0.2, 0.7)),
+                             "paid": round(tr * rnd.uniform(0.05, 0.25))}
+    meta = {k: sum(v[k] for v in by_ad.values()) for k in ("signups", "trials", "activated", "paid")}
+    by_source = {"meta": dict(meta), "(none)": {"signups": 31, "trials": 20, "activated": 11, "paid": 3},
+                 "naver": {"signups": 12, "trials": 8, "activated": 5, "paid": 1}, "lead_mail": {"signups": 2, "trials": 1, "activated": 0, "paid": 0}, "linkedin": {"signups": 4, "trials": 2, "activated": 1, "paid": 0}}
     totals = {k: sum(v[k] for v in by_source.values()) for k in meta}
-    return {"events": {"signups": "sign_up", "trials": "trial_started", "activated": "brand_filter_changed"},
-            "labels": {"signups": "가입", "trials": "무료체험 신청", "activated": "체험 후 브랜드 선택"},
-            "activation_steps": ["trial_started", "brand_filter_changed"], "activation_window_days": 30,
+    return {"events": {"signups": "sign_up", "trials": "trial_started", "activated": "brand_filter_changed",
+                       "paid": "payment_completed"},
+            "labels": {"signups": "가입", "trials": "무료체험 신청", "activated": "체험 중 브랜드 선택", "paid": "유료 전환"},
+            "activation_steps": ["trial_started", "brand_filter_changed"], "trial_days": 5, "paid_window_days": 14,
             "totals": totals, "by_ad": by_ad, "by_source": by_source,
             "ad_property": "gp:initial_utm_content", "source_property": "gp:initial_utm_source"}
