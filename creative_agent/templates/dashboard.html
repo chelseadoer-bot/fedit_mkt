@@ -75,6 +75,13 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 -apple-system
 .b-체험종료,.b-가입만,.b-기존가입자{background:var(--muted-soft);color:var(--sub)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:6px}
 .acc-sum{white-space:normal;text-align:left;min-width:280px;font-size:12px;color:var(--text)}
+.acc-br{white-space:normal;text-align:left;min-width:200px;max-width:280px}
+.acc-br .tag{display:inline-block;margin:0 3px 3px 0}
+.acc-br .tag.v{background:var(--info-soft);color:var(--info)}
+.pop{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px;font-size:12px;align-items:center}
+.pop button{border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;font-size:12px;border-radius:14px;padding:3px 10px;cursor:pointer}
+.pop button b{color:var(--sub);font-weight:500;margin-left:4px}
+.pop button.on{border-color:var(--info);color:var(--info)}
 .warn{font-size:12px;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 12px;margin-top:12px}
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
 h1{font-size:20px;margin:0 0 2px}
@@ -256,7 +263,8 @@ tbody tr.row:hover{background:var(--line2)}
       <h2>계정별 최근 활동</h2>
       <div class="desc" id="acc-desc"></div>
       <div class="note" id="acc-legend"></div>
-      <div class="toolbar"><input id="acc-q" type="search" placeholder="계정 · 유입 · 행동 검색"></div>
+      <div class="pop" id="acc-pop"></div>
+      <div class="toolbar"><input id="acc-q" type="search" placeholder="계정 · 브랜드 · 유입 · 행동 검색"></div>
       <div class="chips" id="acc-chips"></div>
       <div class="tbl-wrap"><table id="acc-table"></table></div>
     </section>
@@ -390,25 +398,42 @@ if (AMP) {
     $('#acc-desc').textContent = `최근 ${AC.days}일 동안 활동한 가입 계정 ${AC.rows.length}개 · ${AC.generated_kst} 기준 (앰플리튜드 데이터는 1~2시간 늦게 반영)`
       + (AC.masked ? ' · 계정 정보는 일부 가려서 표시' : '') + ' · 이 표는 위의 기간 선택과 상관없이 항상 최신';
     if (AC.missing_days) $('#acc-desc').textContent += ` · 아직 못 받은 날 ${AC.missing_days}일(다음 실행 때 채워짐)`;
-    $('#acc-legend').innerHTML = `<span class="dot"></span>초록 점 = 오늘 방문한 계정 · 최근 7일 방문일 = 지난 7일 중 들어온 날 수(같은 날 여러 번 와도 1일)`;
-    let accF = '전체';
+    $('#acc-legend').innerHTML = `<span class="dot"></span>초록 점 = 오늘 방문한 계정 · 최근 7일 방문일 = 지난 7일 중 들어온 날 수(같은 날 여러 번 와도 1일) · 보는 브랜드: <span class="tag v">파란색</span> 실제로 본 브랜드(횟수) <span class="tag">회색</span> 모니터링 설정 브랜드`;
+    let accF = '전체', accBrand = '';
     const F = {'전체': () => true, '오늘 방문': r => r.today, '어제 방문': r => r.yesterday,
                '체험 중': r => r.status.startsWith('체험 중'), '이탈 위험': r => r.status === '이탈 위험',
                '유료': r => r.status === '유료', '메타 유입': r => r.meta};
     const badgeCls = st => 'b-' + st.replace(/\s|D-\d+/g, '').replace('체험중', '체험중');
     const renderAcc = () => {
       const q = $('#acc-q').value.trim().toLowerCase();
-      const base = AC.rows.filter(r => !q || [r.account, r.source, r.content, r.summary, r.status].join(' ').toLowerCase().includes(q));
+      const brandsOf = r => [...(r.monitored_brands || []), ...(r.viewed_brands || []).map(v => v.brand)];
+      const base = AC.rows.filter(r => (!q || [r.account, r.source, r.content, r.summary, r.status, ...brandsOf(r)].join(' ').toLowerCase().includes(q))
+                                    && (!accBrand || brandsOf(r).includes(accBrand)));
+      $('#acc-pop').innerHTML = (AC.popular_brands || []).length
+        ? `<span class="desc">많이 보는 브랜드 (계정 수):</span>` + AC.popular_brands.map(p => `<button class="${p.brand===accBrand?'on':''}" data-br="${esc(p.brand)}">${esc(p.brand)}<b>${p.accounts}</b></button>`).join('')
+          + (accBrand ? ` <button data-br="">✕ 브랜드 필터 해제</button>` : '')
+        : '';
       $('#acc-chips').innerHTML = Object.keys(F).map(k => `<button class="chip ${k===accF?'on':''}" data-f="${k}">${k}<b>${base.filter(F[k]).length}</b></button>`).join('');
       const list = base.filter(F[accF]);
-      $('#acc-table').innerHTML = `<thead><tr><th class="l">계정</th><th class="l">상태</th><th class="l">마지막 방문</th><th title="지난 7일 중 들어온 날 수 (같은 날 여러 번 와도 1일)">최근 7일 방문일</th><th class="l">유입</th><th class="l">한 줄 요약</th></tr></thead><tbody>
+      $('#acc-table').innerHTML = `<thead><tr><th class="l">계정</th><th class="l">상태</th><th class="l">마지막 방문</th><th title="지난 7일 중 들어온 날 수 (같은 날 여러 번 와도 1일)">최근 7일 방문일</th><th class="l">유입</th><th class="l" title="파란색 = 실제로 많이 본 브랜드(횟수), 회색 = 모니터링 설정한 브랜드">보는 브랜드</th><th class="l">한 줄 요약</th></tr></thead><tbody>
         ${list.map(r => `<tr><td class="l">${r.today ? '<span class="dot" title="오늘 방문"></span>' : ''}${esc(r.account)}${r.plan ? `<div class="subname">${esc(r.plan)}${r.account_type ? ' · ' + esc(r.account_type) : ''}</div>` : ''}</td>
           <td class="l"><span class="badge ${badgeCls(r.status)}">${esc(r.status)}</span></td>
           <td class="l">${esc(r.last_seen)}${r.today ? ' <span class="tag">오늘</span>' : r.yesterday ? ' <span class="tag">어제</span>' : ''}</td>
           <td>${r.visit_days_7}일</td>
           <td class="l">${esc(r.source)}${r.meta ? ' <span class="tag">메타</span>' : ''}${r.content ? `<div class="subname">${esc(r.content)}</div>` : ''}</td>
-          <td class="acc-sum">${esc(r.summary)}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">해당하는 계정이 없습니다</td></tr>`}</tbody>`;
+          <td class="acc-br">${brandCell(r)}</td>
+          <td class="acc-sum">${esc(r.summary)}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">해당하는 계정이 없습니다</td></tr>`}</tbody>`;
     };
+    const brandCell = r => {
+      const viewed = (r.viewed_brands || []).slice(0, 4);
+      const vset = new Set(viewed.map(v => v.brand));
+      const mon = (r.monitored_brands || []).filter(b => !vset.has(b));
+      const more = mon.length > 6 ? mon.length - 6 : 0;
+      const html = viewed.map(v => `<span class="tag v">${esc(v.brand)} ${v.n}</span>`).join('')
+        + mon.slice(0, 6).map(b => `<span class="tag">${esc(b)}</span>`).join('') + (more ? `<span class="tag">외 ${more}개</span>` : '');
+      return html || '<span class="desc">—</span>';
+    };
+    $('#acc-pop').onclick = e => { const b = e.target.closest('[data-br]'); if (b) { accBrand = b.dataset.br === accBrand ? '' : b.dataset.br; renderAcc(); } };
     $('#acc-chips').onclick = e => { const b = e.target.closest('[data-f]'); if (b) { accF = b.dataset.f; renderAcc(); } };
     $('#acc-q').oninput = renderAcc;
     renderAcc();

@@ -107,6 +107,9 @@ def fake_amplitude(rep: dict) -> dict:
             "ad_property": "gp:initial_utm_content", "source_property": "gp:initial_utm_source"}
 
 
+BRANDS = ["무신사 스탠다드", "에잇세컨즈", "탑텐", "스파오", "커버낫", "디스이즈네버댓", "마뗑킴", "앤더슨벨"]
+
+
 def fake_accounts() -> dict:
     """데모용 가입 계정 활동."""
     rnd = random.Random(11)
@@ -122,7 +125,12 @@ def fake_accounts() -> dict:
                      "signup": f"2026-11-{rnd.randint(1, 10):02d}", "trial": None if st == "가입만" else f"2026-11-{rnd.randint(5, 10):02d}",
                      "status": st, "last_seen": f"2026-11-{rnd.randint(6, 11):02d} {rnd.randint(9, 22):02d}:{rnd.randint(0, 59):02d}",
                      "today": rnd.random() < 0.3, "yesterday": rnd.random() < 0.4, "visit_days_7": rnd.randint(1, 6),
-                     "summary": f"11/0{rnd.randint(1, 9)} 가입 → " + " · ".join(acts) + f" → 브랜드 {rnd.randint(1, 5)}개 모니터링"})
+                     "summary": f"11/0{rnd.randint(1, 9)} 가입 → " + " · ".join(acts) + f" → 브랜드 {rnd.randint(1, 5)}개 모니터링",
+                     "monitored_brands": rnd.sample(BRANDS, rnd.randint(1, 5)),
+                     "viewed_brands": [{"brand": b, "n": rnd.randint(1, 30)} for b in rnd.sample(BRANDS, rnd.randint(0, 3))]})
     rows.sort(key=lambda r: r["last_seen"], reverse=True)
-    return {"generated_kst": "2026-11-11 13:00", "days": 30, "masked": True,
+    from collections import Counter
+    pop = Counter(b for r in rows for b in set(r["monitored_brands"]) | {v["brand"] for v in r["viewed_brands"]})
+    return {"popular_brands": [{"brand": b, "accounts": n} for b, n in pop.most_common(15)],
+            "generated_kst": "2026-11-11 13:00", "days": 30, "masked": False,
             "today_count": sum(r["today"] for r in rows), "rows": rows}

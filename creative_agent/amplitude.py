@@ -347,6 +347,25 @@ def _export_day(day: _date, cache_dir) -> list[dict]:
     return slim
 
 
+BRAND_USER_PROP = os.getenv("AMPLITUDE_BRAND_USER_PROP") or "monitored_brands"
+BRAND_EVENT_PROP = os.getenv("AMPLITUDE_BRAND_EVENT_PROP") or "brand_name"
+
+
+def _as_list(v) -> list[str]:
+    """브랜드 값이 리스트·JSON 문자열·쉼표 문자열 어느 형태든 리스트로."""
+    if v is None or v == "":
+        return []
+    if isinstance(v, list):
+        return [str(x).strip() for x in v if str(x).strip()]
+    s = str(v).strip()
+    if s.startswith("["):
+        try:
+            return [str(x).strip() for x in json.loads(s) if str(x).strip()]
+        except ValueError:
+            pass
+    return [x.strip() for x in s.split(",") if x.strip()]
+
+
 def _mask(uid: str) -> str:
     if SHOW_FULL_ACCOUNT or not uid:
         return uid or "(익명)"
@@ -427,8 +446,12 @@ def accounts(days: int = 30) -> dict | None:
         visit_days = {t.date() for t in times}
         counts = Counter(ACTION_LABELS[ty] for ty in types if ty in ACTION_LABELS)
         p = props.get(uid, {})
-        brands = p.get("monitored_brands")
-        n_brands = len(brands) if isinstance(brands, list) else None
+        monitored = _as_list(p.get(BRAND_USER_PROP))
+        n_brands = len(monitored) or None
+        viewed = Counter()  # 행동 이벤트에 찍힌 브랜드
+        for e in evs:
+            for b in _as_list((e.get("event_properties") or {}).get(BRAND_EVENT_PROP)):
+                viewed[b] += 1
 
         if paid:
             status = "유료"
@@ -462,9 +485,18 @@ def accounts(days: int = 30) -> dict | None:
             "today": today in visit_days, "yesterday": yesterday in visit_days,
             "visit_days_7": sum(1 for d in visit_days if (today - d).days < 7),
             "summary": " → ".join(bits),
+            "monitored_brands": monitored,
+            "viewed_brands": [{"brand": b, "n": n} for b, n in viewed.most_common(8)],
         })
     rows.sort(key=lambda r: r["last_seen"], reverse=True)
-    return {"generated_kst": f"{now:%Y-%m-%d %H:%M}", "days": days, "masked": not SHOW_FULL_ACCOUNT,
+    popular = Counter()
+    for r in rows:  # 계정 수 기준 인기 브랜드 (설정 + 실제 조회)
+        for b in set(r["monitored_brands"]) | {v["brand"] for v in r["viewed_brands"]}:
+            popular[b] += 1
+    with_brand = sum(1 for r in rows if r["monitored_brands"] or r["viewed_brands"])
+    print(f"   브랜드 정보 있는 계정 {with_brand}/{len(rows)}개 "
+          f"(설정 {sum(1 for r in rows if r['monitored_brands'])} · 조회 {sum(1 for r in rows if r['viewed_brands'])})")
+    return {"popular_brands": [{"brand": b, "accounts": n} for b, n in popular.most_common(15)],"generated_kst": f"{now:%Y-%m-%d %H:%M}", "days": days, "masked": not SHOW_FULL_ACCOUNT,
             "missing_days": len(missing),
             "excluded_count": len(excluded),
             "today_count": sum(r["today"] for r in rows), "rows": rows}
