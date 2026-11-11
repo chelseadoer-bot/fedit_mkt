@@ -390,8 +390,7 @@ if (AMP) {
     $('#acc-desc').textContent = `최근 ${AC.days}일 동안 활동한 가입 계정 ${AC.rows.length}개 · ${AC.generated_kst} 기준 (앰플리튜드 데이터는 1~2시간 늦게 반영)`
       + (AC.masked ? ' · 계정 정보는 일부 가려서 표시' : '') + ' · 이 표는 위의 기간 선택과 상관없이 항상 최신';
     if (AC.missing_days) $('#acc-desc').textContent += ` · 아직 못 받은 날 ${AC.missing_days}일(다음 실행 때 채워짐)`;
-    $('#acc-legend').innerHTML = `<span class="dot"></span>초록 점 = 오늘 방문한 계정 · 최근 7일 방문일 = 지난 7일 중 들어온 날 수(같은 날 여러 번 와도 1일)`
-      + ((AC.excluded || []).length ? `<br>제외한 계정 ${AC.excluded.length}개: ${AC.excluded.map(esc).join(', ')} <span style="color:var(--faint)">(저장소 exclude_accounts.txt에서 관리)</span>` : '');
+    $('#acc-legend').innerHTML = `<span class="dot"></span>초록 점 = 오늘 방문한 계정 · 최근 7일 방문일 = 지난 7일 중 들어온 날 수(같은 날 여러 번 와도 1일)`;
     let accF = '전체';
     const F = {'전체': () => true, '오늘 방문': r => r.today, '어제 방문': r => r.yesterday,
                '체험 중': r => r.status.startsWith('체험 중'), '이탈 위험': r => r.status === '이탈 위험',

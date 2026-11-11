@@ -466,5 +466,5 @@ def accounts(days: int = 30) -> dict | None:
     rows.sort(key=lambda r: r["last_seen"], reverse=True)
     return {"generated_kst": f"{now:%Y-%m-%d %H:%M}", "days": days, "masked": not SHOW_FULL_ACCOUNT,
             "missing_days": len(missing),
-            "excluded": sorted(_mask(u) for u in excluded),
+            "excluded_count": len(excluded),
             "today_count": sum(r["today"] for r in rows), "rows": rows}
