@@ -120,3 +120,16 @@ PC를 켜 두지 않아도 GitHub 서버가 매일 아침(한국시간 5:47경) 
 - 이메일은 전체로 표시합니다. 가리려면 GitHub Variables에 `SHOW_FULL_ACCOUNT=0`.
 - 테스트·내부 계정은 저장소의 `exclude_accounts.txt`에 적으면 표에서 빠집니다(전체 이메일 / `앞글자***@도메인` / `@도메인`).
 - 자동 실행은 하루 3번(한국시간 05:47 · 12:47 · 18:47). 앰플리튜드 원본 데이터는 1~2시간 늦게 들어옵니다.
+
+## 갱신 주기와 가입 즉시 갱신
+
+- 자동 실행: 한국시간 05:47, 그리고 09~21시 2시간마다(:47분). AI 코멘트는 하루 첫 실행 때 한 번만 만들고 같은 날은 재사용(`--ai-refresh`로 강제 생성).
+- **가입·체험 시작 즉시 갱신**: 앰플리튜드 웹훅 → GitHub `repository_dispatch`(`amplitude_event`) → 약 4~5분 뒤 대시보드 반영.
+  웹훅 본문의 `client_payload.user_id` 사용자는 원본 데이터 지연(1~2시간)을 기다리지 않고 User Activity API로 바로 보충합니다(3일간 유지).
+
+웹훅 설정(앰플리튜드 Data → Destinations → Webhook):
+- URL: `https://api.github.com/repos/chelseadoer-bot/fedit_mkt/dispatches` (POST)
+- 헤더: `Authorization: Bearer <GitHub fine-grained 토큰>`, `Accept: application/vnd.github+json`
+  - 토큰: GitHub → Settings → Developer settings → Fine-grained tokens, 저장소 `fedit_mkt`만, 권한 **Contents: Read and write**
+- 보낼 이벤트: `sign_up`, `trial_started`
+- 본문: `{"event_type": "amplitude_event", "client_payload": {"user_id": "<이벤트의 user_id>", "event": "<event_type>"}}`

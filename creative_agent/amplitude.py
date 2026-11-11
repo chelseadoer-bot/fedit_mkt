@@ -366,6 +366,41 @@ def _as_list(v) -> list[str]:
     return [x.strip() for x in s.split(",") if x.strip()]
 
 
+def _recent_user_ids(cache_dir) -> list[str]:
+    """웹훅으로 들어온 '방금 가입·체험한' 사용자 ID (최근 3일치 보관). 원본 데이터 지연을 메우는 데 씀."""
+    f = cache_dir / "recent_users.json"
+    saved = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    now = _dt.now(_tz.utc)
+    for uid in [x.strip() for x in (os.getenv("RECENT_USER_IDS") or "").split(",") if x.strip()]:
+        saved[uid] = now.isoformat()
+    saved = {u: t for u, t in saved.items() if now - _dt.fromisoformat(t) < _td(days=3)}
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(saved), encoding="utf-8")
+    return list(saved)
+
+
+def _live_activity(user_id: str) -> list[dict]:
+    """User Activity API로 한 사용자의 최근 이벤트를 실시간에 가깝게 가져온다."""
+    r = requests.get(f"{_base()}/api/2/usersearch", params={"user": user_id}, auth=(API_KEY, SECRET_KEY), timeout=60)
+    if not r.ok:
+        raise AmplitudeError(f"usersearch {r.status_code}")
+    matches = r.json().get("matches") or []
+    if not matches:
+        return []
+    amp_id = matches[0].get("amplitude_id")
+    r = requests.get(f"{_base()}/api/2/useractivity", params={"user": amp_id, "limit": 1000},
+                     auth=(API_KEY, SECRET_KEY), timeout=60)
+    if not r.ok:
+        raise AmplitudeError(f"useractivity {r.status_code}")
+    keep = ("event_type", "event_time", "user_id", "amplitude_id", "user_properties", "event_properties")
+    out = []
+    for e in r.json().get("events") or []:
+        ev = {k: e.get(k) for k in keep}
+        ev["user_id"] = ev.get("user_id") or user_id
+        out.append(ev)
+    return out
+
+
 def _mask(uid: str) -> str:
     if SHOW_FULL_ACCOUNT or not uid:
         return uid or "(익명)"
@@ -410,6 +445,22 @@ def accounts(days: int = 30) -> dict | None:
                     print(f"  ⚠️ {day} 원본 이벤트 받기 실패 — 그날만 건너뜀 ({err})")
             else:
                 events += evs
+    # 방금 가입·체험한 사용자는 원본 데이터 지연(1~2시간)을 기다리지 않고 실시간 API로 보충
+    recent = _recent_user_ids(cache_dir)
+    if recent:
+        seen = {(e.get("user_id"), e.get("event_type"), e.get("event_time")) for e in events}
+        added = 0
+        for uid in recent:
+            try:
+                for e in _live_activity(uid):
+                    k = (e.get("user_id"), e.get("event_type"), e.get("event_time"))
+                    if k not in seen:
+                        seen.add(k)
+                        events.append(e)
+                        added += 1
+            except (AmplitudeError, requests.RequestException, ValueError) as e:
+                print(f"  ⚠️ 실시간 활동 조회 실패 ({str(e)[:80]})")
+        print(f"   방금 들어온 사용자 {len(recent)}명 실시간 보충 — 이벤트 {added}개 추가")
     if missing:
         print(f"   못 받은 날 {len(missing)}일 — 다음 실행 때 다시 시도합니다")
     if not events and missing:

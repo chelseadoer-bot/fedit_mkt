@@ -2,7 +2,10 @@ name: 매일 소재 분석
 
 on:
   schedule:
-    - cron: "47 20,3,9 * * *"   # 매일 한국시간 05:47 · 12:47 · 18:47 (UTC 20:47·03:47·09:47). 조금 늦게 시작될 수 있음
+    # 한국시간 05:47, 그리고 09~21시 2시간마다 (:47분). GitHub 사정으로 조금 늦게 시작될 수 있음
+    - cron: "47 20,0,2,4,6,8,10,12 * * *"
+  repository_dispatch:        # 앰플리튜드 웹훅(가입·체험 시작)이 오면 바로 갱신
+    types: [amplitude_event]
   push:                      # 코드나 경쟁사 스크린샷이 바뀌면 바로 다시 실행 (버튼 안 눌러도 됨)
     branches: [main]
     paths:
@@ -60,6 +63,7 @@ jobs:
           EXCLUDE_ACCOUNTS: ${{ vars.EXCLUDE_ACCOUNTS }}
           META_CONVERSION_ACTION: ${{ vars.META_CONVERSION_ACTION }}
           MIN_SPEND: ${{ vars.MIN_SPEND }}
+          RECENT_USER_IDS: ${{ github.event.client_payload.user_id }}
           PYTHONUNBUFFERED: "1"
         run: python -m creative_agent run --days "${{ inputs.days || '90' }}" --site site
 

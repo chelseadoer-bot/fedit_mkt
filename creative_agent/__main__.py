@@ -65,6 +65,7 @@ def main() -> None:
     r.add_argument("--since")
     r.add_argument("--until")
     r.add_argument("--no-ai", action="store_true", help="AI 코멘트 생략(라벨링은 수행)")
+    r.add_argument("--ai-refresh", action="store_true", help="오늘 만든 AI 코멘트가 있어도 새로 생성")
     r.add_argument("--skip-collect", action="store_true", help="DB에 있는 데이터로만 분석")
     r.add_argument("--site", help="팀 공유용 정적 사이트를 만들 폴더 (DASHBOARD_PASSWORD 로 암호화)")
     d = sub.add_parser("demo", help="가짜 데이터로 대시보드 미리보기")
@@ -141,9 +142,23 @@ def main() -> None:
     if comp:
         print(f"   경쟁사 {len(comp['brands'])}곳, 저장한 광고 {len(comp['ads'])}개")
     if use_ai and default["labeled_count"]:
-        from . import insights
-        print(f"⑤ AI 코멘트 생성 ({default['label']} 기준)")
-        default["ai_summary"] = insights.generate(default, comp)
+        # AI 코멘트는 하루(한국 날짜) 한 번만 만들고, 같은 날 다른 실행은 저장된 코멘트를 재사용
+        import json as _json
+        from datetime import datetime as _dt, timezone as _tz
+        kst_today = str(_dt.now(_tz(timedelta(hours=9))).date())
+        cache = config.DATA_DIR / "ai_summary.json"
+        cached = _json.loads(cache.read_text(encoding="utf-8")) if cache.exists() else {}
+        if not getattr(a, "ai_refresh", False) and cached.get("date") == kst_today and cached.get("summary"):
+            print(f"⑤ AI 코멘트: 오늘({kst_today}) 만든 코멘트 재사용")
+            default["ai_summary"] = cached["summary"]
+        else:
+            from . import insights
+            print(f"⑤ AI 코멘트 생성 ({default['label']} 기준)")
+            default["ai_summary"] = insights.generate(default, comp)
+            if default["ai_summary"]:
+                cache.parent.mkdir(parents=True, exist_ok=True)
+                cache.write_text(_json.dumps({"date": kst_today, "summary": default["ai_summary"]}, ensure_ascii=False),
+                                 encoding="utf-8")
     rep = report.bundle(views, default["key"])
     if comp:
         rep["thumbs"].update(comp.pop("thumbs"))
