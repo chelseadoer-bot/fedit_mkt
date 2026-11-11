@@ -203,3 +203,47 @@ def attach(report: dict, amp: dict | None) -> dict:
                           key=lambda x: -x["signups"]),
     }
     return report
+
+
+def debug(since: str, until: str) -> None:
+    """활성화 수치 검증용: 퍼널 원본 응답(단계별 인원·전환 시간)과 비교 퍼널을 출력. 사용자 정보는 출력하지 않음."""
+    def raw_funnel(events, window_days):
+        params = [("e", json.dumps({"event_type": ev})) for ev in events]
+        params += [("start", since.replace("-", "")), ("end", until.replace("-", "")),
+                   ("mode", "ordered"), ("n", "active"), ("cs", window_days * 86400)]
+        r = requests.get(f"{_base()}/api/2/funnels", params=params, auth=(API_KEY, SECRET_KEY), timeout=120)
+        if not r.ok:
+            return {"error": f"{r.status_code}: {r.text[:200]}"}
+        data = r.json().get("data", [])
+        d = data[0] if isinstance(data, list) and data else data
+        return {k: d.get(k) for k in ("events", "cumulativeRaw", "stepByStep", "medianTransTimes", "avgTransTimes")
+                if isinstance(d, dict)} | {"keys": sorted(d)[:20] if isinstance(d, dict) else str(type(d))}
+
+    def fmt_ms(v):
+        if not isinstance(v, (int, float)):
+            return str(v)
+        s = v / 1000
+        return f"{s:.1f}초" if s < 120 else f"{s/60:.1f}분" if s < 7200 else f"{s/3600:.1f}시간"
+
+    print(f"== Amplitude 활성화 검증 {since} ~ {until} ==")
+    for ev in ("sign_up", "trial_started", "brand_filter_changed", "folder_save", "excel_download"):
+        try:
+            print(f"  [고유 사용자] {ev}: {sum(segmentation(ev, since, until).values()):.0f}명")
+        except AmplitudeError as e:
+            print(f"  [고유 사용자] {ev}: 오류 {e}")
+    checks = [(["trial_started", "brand_filter_changed"], TRIAL_DAYS),
+              (["trial_started", "brand_filter_changed"], 1),
+              (["brand_filter_changed", "trial_started"], 1),
+              (["trial_started", "folder_save"], TRIAL_DAYS),
+              (["trial_started", "excel_download"], TRIAL_DAYS),
+              (["trial_started", "sign_up"], TRIAL_DAYS)]
+    for evs, w in checks:
+        d = raw_funnel(evs, w)
+        if "error" in d:
+            print(f"  [퍼널] {' → '.join(evs)} ({w}일): 오류 {d['error']}")
+            continue
+        med = d.get("medianTransTimes") or []
+        avg = d.get("avgTransTimes") or []
+        print(f"  [퍼널] {' → '.join(evs)} (전환 기간 {w}일): 단계별 인원 {d.get('cumulativeRaw')} · "
+              f"전환 시간 중앙값 {[fmt_ms(x) for x in med]} · 평균 {[fmt_ms(x) for x in avg]}")
+    print(f"  응답 키: {d.get('keys')}")

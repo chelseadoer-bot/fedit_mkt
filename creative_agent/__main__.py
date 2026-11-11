@@ -71,9 +71,14 @@ def main() -> None:
     d.add_argument("--ai", action="store_true", help="데모 데이터에도 AI 코멘트 생성")
     d.add_argument("--site", help="팀 공유용 정적 사이트를 만들 폴더")
     sub.add_parser("check", help="연결 점검")
+    sub.add_parser("amp-debug", help="앰플리튜드 활성화 수치 검증 (최근 30일)")
     a = p.parse_args()
     if a.cmd == "check":
         return check()
+    if a.cmd == "amp-debug":
+        from . import amplitude
+        u = str(date.today() - timedelta(days=1))
+        return amplitude.debug(str(date.fromisoformat(u) - timedelta(days=29)), u)
 
     con = db.connect()
     if a.cmd == "demo":

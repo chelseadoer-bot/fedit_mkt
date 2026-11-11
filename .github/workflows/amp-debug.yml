@@ -1,0 +1,28 @@
+name: 앰플리튜드 수치 점검
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/amp-debug.yml"
+      - "creative_agent/amplitude.py"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: 활성화 수치 검증
+        env:
+          AMPLITUDE_API_KEY: ${{ secrets.AMPLITUDE_API_KEY }}
+          AMPLITUDE_SECRET_KEY: ${{ secrets.AMPLITUDE_SECRET_KEY }}
+          AMPLITUDE_REGION: ${{ vars.AMPLITUDE_REGION }}
+          PYTHONUNBUFFERED: "1"
+        run: python -m creative_agent amp-debug
