@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>크리에이티브 소재 분석</title>
+<style>
+:root{
+  --bg:#f4f5f7; --card:#fff; --line:#e7e8ec; --line2:#f0f1f4; --text:#1d1f24; --sub:#6b7180; --faint:#9aa0ab;
+  --accent:#b4232a; --accent-soft:#fbeaea; --chip:#f1f2f5;
+  --good:#16834a; --good-soft:#e5f5ec; --warn:#b4570b; --warn-soft:#fdf0e3; --bad:#b4232a; --bad-soft:#fbeaea;
+  --info:#2759c4; --info-soft:#e8eefb; --muted-soft:#eef0f3;
+  --spark:#9aa3b2; --spark-up:#16834a; --spark-down:#d6453d;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1115; --card:#171a20; --line:#272b33; --line2:#1f232a; --text:#e8eaee; --sub:#a0a6b2; --faint:#6f7683;
+  --accent:#e0525a; --accent-soft:#3a1d20; --chip:#22262e;
+  --good:#4cc283; --good-soft:#173426; --warn:#e79a4c; --warn-soft:#3a2a17; --bad:#e0525a; --bad-soft:#3a1d20;
+  --info:#7aa2f0; --info-soft:#1c2740; --muted-soft:#22262e; --spark:#6f7683;
+}}
+:root[data-theme="dark"]{
+  --bg:#0f1115; --card:#171a20; --line:#272b33; --line2:#1f232a; --text:#e8eaee; --sub:#a0a6b2; --faint:#6f7683;
+  --accent:#e0525a; --accent-soft:#3a1d20; --chip:#22262e;
+  --good:#4cc283; --good-soft:#173426; --warn:#e79a4c; --warn-soft:#3a2a17; --bad:#e0525a; --bad-soft:#3a1d20;
+  --info:#7aa2f0; --info-soft:#1c2740; --muted-soft:#22262e; --spark:#6f7683;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 -apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif;font-variant-numeric:tabular-nums}
+.wrap{max-width:1440px;margin:0 auto;padding:20px 16px 60px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
+h1{font-size:20px;margin:0 0 2px}
+.desc{color:var(--sub);font-size:12px}
+.period{font-size:12px;color:var(--sub);border:1px solid var(--line);background:var(--card);padding:6px 10px;border-radius:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
+.chip{border:0;background:var(--chip);color:var(--sub);font:inherit;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer}
+.chip.on{background:var(--accent);color:#fff}
+.chip b{font-weight:500;margin-left:4px;opacity:.8}
+.insight{background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12.5px}
+.tbl-wrap{border:1px solid var(--line);border-radius:10px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:880px}
+th{font-size:11px;font-weight:500;color:var(--sub);text-align:right;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+th.l,td.l{text-align:left}
+th.sorted{color:var(--text)}
+td{padding:10px 12px;border-bottom:1px solid var(--line2);text-align:right;white-space:nowrap;vertical-align:middle}
+tr.total td{font-weight:600;border-top:1px solid var(--line);border-bottom:0}
+tbody tr.row{cursor:pointer}
+tbody tr.row:hover{background:var(--line2)}
+.thumbs{display:inline-flex;gap:4px;vertical-align:middle;margin-right:8px}
+.thumbs img,.th-img{width:28px;height:28px;object-fit:cover;border-radius:4px;background:var(--chip)}
+.th-img.big{width:40px;height:40px}
+.name{font-size:13px}
+.name .pf{color:var(--info);font-size:11px;margin-right:4px}
+.subname{font-size:11px;color:var(--sub);max-width:380px;overflow:hidden;text-overflow:ellipsis}
+.tags{display:flex;gap:4px;margin-top:4px}
+.tag{font-size:10.5px;background:var(--chip);color:var(--sub);padding:1px 6px;border-radius:4px}
+.badge{font-size:11px;padding:2px 8px;border-radius:5px;display:inline-block}
+.b-증액{background:var(--good-soft);color:var(--good)}
+.b-감액검토{background:var(--bad-soft);color:var(--bad)}
+.b-클릭률개선{background:var(--warn-soft);color:var(--warn)}
+.b-객단가검토{background:var(--info-soft);color:var(--info)}
+.b-모니터링{background:var(--muted-soft);color:var(--sub)}
+.b-랜딩도달개선,.b-전환율개선{background:var(--info-soft);color:var(--info)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .l{font-size:11.5px;color:var(--sub)}
+.kpi .v{font-size:20px;font-weight:600;margin-top:2px}
+.kpi.main{border-color:var(--accent)}
+.kpi.main .v{color:var(--accent)}
+.kpi .s{font-size:11px;color:var(--faint);margin-top:2px}
+.note{font-size:11.5px;color:var(--faint);margin-top:6px}
+#lock{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+#lock[hidden]{display:none}
+.lock-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px 24px;width:100%;max-width:360px}
+.lock-card h1{margin-bottom:4px}
+.lock-card form{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.lock-card input[type=password]{font:inherit;font-size:14px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.lock-card button{font:inherit;font-size:14px;font-weight:600;border:0;border-radius:8px;padding:10px;background:var(--accent);color:#fff;cursor:pointer}
+.lock-card button:disabled{opacity:.6;cursor:default}
+.lock-card label{font-size:12px;color:var(--sub);display:flex;gap:6px;align-items:center}
+.lock-err{font-size:12px;color:var(--bad);min-height:18px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 0}
+.toolbar input,.toolbar select{font:inherit;font-size:12px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:7px;padding:6px 10px}
+.toolbar input{width:220px;max-width:100%}
+.spacer{flex:1}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{font:inherit;font-size:12px;border:0;background:var(--card);color:var(--sub);padding:6px 12px;cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff}
+.foot{display:flex;justify-content:flex-end;margin-top:10px}
+.link{border:0;background:none;color:var(--sub);font:inherit;font-size:11px;cursor:pointer}
+.link:hover{color:var(--text)}
+.detail td{background:var(--bg);text-align:left;white-space:normal}
+.detail .kv{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px}
+.detail .kv span{color:var(--sub)}
+.detail img{width:180px;border-radius:8px;float:left;margin-right:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:12px}
+.tile{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card);cursor:pointer}
+.tile img,.tile .ph{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:var(--chip)}
+.tile .meta{padding:8px 10px;font-size:11.5px}
+.tile .meta .n{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .meta .r{display:flex;justify-content:space-between;color:var(--sub);margin-top:4px}
+.ai h3{font-size:13px;margin:12px 0 4px}
+.ai ul{margin:0;padding-left:18px}
+.ai li{margin:3px 0}
+.ai .head{font-size:14px;font-weight:600;margin-top:8px}
+.more{display:block;margin:12px auto 0;font:inherit;font-size:12px;border:1px solid var(--line);background:var(--card);color:var(--text);padding:6px 16px;border-radius:7px;cursor:pointer}
+.empty{color:var(--faint);text-align:center;padding:30px}
+</style>
+</head>
+<body>
+<div id="lock" hidden>
+  <div class="lock-card">
+    <h1>크리에이티브 소재</h1>
+    <div class="desc">비밀번호를 입력하면 대시보드가 열립니다</div>
+    <form id="lock-form">
+      <input id="lock-pw" type="password" placeholder="비밀번호" autocomplete="current-password" required>
+      <label><input id="lock-remember" type="checkbox" checked> 이 기기에서 기억하기</label>
+      <button id="lock-btn" type="submit">열기</button>
+      <div class="lock-err" id="lock-err"></div>
+    </form>
+  </div>
+</div>
+<div class="wrap" id="app">
+  <header>
+    <div>
+      <h1>크리에이티브 소재</h1>
+      <div class="desc">메타 광고 소재(이미지) 단위 성과 · 핵심 전환: <b id="conv-name"></b> · <span id="gen"></span> 생성</div>
+    </div>
+    <div class="period" id="period"></div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <section class="card ai" id="ai" hidden>
+    <h2>AI 코멘트</h2>
+    <div class="desc">Claude가 아래 집계를 읽고 작성했습니다 — 숫자는 표와 대조해 확인하세요</div>
+    <div id="ai-body"></div>
+  </section>
+
+  <section class="card">
+    <h2>구조별 성과</h2>
+    <div class="desc">소재 이미지를 읽어 붙인 라벨로 묶습니다 · <span id="lbl-count"></span></div>
+    <div class="chips" id="dim-chips"></div>
+    <div class="insight" id="dim-insight" hidden></div>
+    <div class="tbl-wrap"><table id="dim-table"></table></div>
+    <div class="foot"><button class="link" id="csv">CSV ↓</button></div>
+    <div class="note" id="csv-note" hidden></div>
+  </section>
+
+  <section class="card">
+    <h2>소재 목록</h2>
+    <div class="desc"><span id="ad-count"></span> · 누르면 자세히 보입니다</div>
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="캠페인 · 세트 · 광고 이름">
+      <select id="minspend">
+        <option value="0">최소 광고비 제한 없음</option>
+        <option value="5000">₩5,000 이상</option>
+        <option value="10000">₩10,000 이상</option>
+        <option value="50000">₩50,000 이상</option>
+        <option value="100000">₩100,000 이상</option>
+      </select>
+      <span class="spacer"></span>
+      <div class="seg"><button data-v="table" class="on">표</button><button data-v="grid">썸네일</button></div>
+    </div>
+    <div class="chips" id="diag-chips"></div>
+    <div id="ad-view"></div>
+    <button class="more" id="more" hidden>더 보기</button>
+  </section>
+</div>
+
+<script type="application/json" id="data">__DATA__</script>
+<script>
+const RAW = JSON.parse(document.getElementById('data').textContent);
+function boot(D) {
+const $ = s => document.querySelector(s);
+const won = v => '₩' + Math.round(v).toLocaleString('ko-KR');
+const int = v => Math.round(v).toLocaleString('ko-KR');
+const pct = (v, d=2) => (v*100).toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d}) + '%';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const img = (h, cls='th-img') => h && D.thumbs[h] ? `<img class="${cls}" src="${D.thumbs[h]}" alt="" loading="lazy">` : `<span class="${cls}" style="display:inline-block"></span>`;
+
+const ROAS = D.goal === 'roas';
+const CONV = (D.conversion && D.conversion.label) || '전환';
+const RATE = D.conversion && D.conversion.is_landing ? '랜딩 도달률' : '전환율';
+const fmtCpa = v => v ? won(v) : '—';
+$('#period').textContent = `${D.period.since} ~ ${D.period.until}`;
+
+// ── 핵심 지표 ──
+(() => {
+  const A = D.account, T = D.analyzed_totals || A;
+  const k = ROAS
+    ? [['광고비', won(A.spend)], ['광고매출', won(A.revenue)], ['ROAS', pct(A.roas,0), 1], ['CTR', pct(A.ctr)], ['CVR', pct(A.cvr)]]
+    : [['광고비', won(A.spend), 0, `분석 대상 소재 ${won(T.spend)}`], [CONV, int(A.conversions), 1, '핵심 전환'],
+       [`${CONV}당 비용`, fmtCpa(A.cpa), 1], [RATE, pct(A.cvr,1), 0, `링크 클릭 ${int(A.clicks)}회 중`],
+       ['CTR', pct(A.ctr)], ['CPC', won(A.cpc)]];
+  $('#kpis').innerHTML = k.map(([l,v,main,sub]) => `<div class="kpi ${main?'main':''}"><div class="l">${esc(l)}</div><div class="v">${v}</div>${sub?`<div class="s">${esc(sub)}</div>`:''}</div>`).join('');
+})();
+$('#gen').textContent = D.generated_at;
+$('#conv-name').textContent = ROAS ? '구매 매출(ROAS)' : CONV;
+$('#lbl-count').textContent = `${D.labeled_count}/${D.total_count}개에 라벨이 있습니다`;
+
+// ── AI 코멘트 ──
+if (D.ai_summary) {
+  const a = D.ai_summary;
+  $('#ai').hidden = false;
+  $('#ai-body').innerHTML = `<div class="head">${esc(a.headline)}</div>
+    <h3>발견</h3><ul>${a.findings.map(f => `<li><b>${esc(f.title)}</b> — ${esc(f.detail)}</li>`).join('')}</ul>
+    ${a.actions && a.actions.length ? `<h3>다음 액션</h3><ul>${a.actions.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`;
+}
+
+// ── 구조별 성과 ──
+// 전환당 비용은 전환 0건(값 0)을 항상 맨 뒤로
+const numCmp = (a, b, o) => { const x = a[o.k], y = b[o.k];
+  if (o.k === 'cpa' && (!x || !y)) return (!x) - (!y);
+  return o.dir * (x - y); };
+const dims = Object.keys(D.dimensions);
+let curDim = dims[0], dimSort = {k:'spend', dir:-1};
+const DCOLS = ROAS
+  ? [['value','구분','l'],['count','소재수'],['spend','광고비'],['revenue','광고매출'],['roas','ROAS'],['ctr','CTR'],['cvr','CVR']]
+  : [['value','구분','l'],['count','소재수'],['spend','광고비'],['conversions',CONV],['cpa',`${CONV}당 비용`],['cvr',RATE],['ctr','CTR'],['cpc','CPC']];
+const cell = (k, x) => ({count: `${x.count}개`, spend: won(x.spend), revenue: won(x.revenue), roas: pct(x.roas),
+  ctr: pct(x.ctr), cvr: pct(x.cvr, ROAS?2:1), conversions: int(x.conversions), cpa: fmtCpa(x.cpa), cpc: won(x.cpc),
+  impressions: int(x.impressions), clicks: int(x.clicks), purchases: int(x.purchases)})[k];
+function renderDimChips(){
+  $('#dim-chips').innerHTML = dims.map(d => `<button class="chip ${d===curDim?'on':''}" data-d="${esc(d)}">${esc(d)}<b>${D.dimensions[d].length}</b></button>`).join('');
+}
+function renderDim(){
+  renderDimChips();
+  const gs = [...D.dimensions[curDim]].sort((a,b) => dimSort.k==='value' ? dimSort.dir*a.value.localeCompare(b.value) : numCmp(a,b,dimSort));
+  const ins = D.insights[curDim];
+  $('#dim-insight').hidden = !ins; $('#dim-insight').textContent = ins || '';
+  const t = D.labeled_totals;
+  $('#dim-table').innerHTML = `<thead><tr>${DCOLS.map(([k,l,c]) => `<th class="${c||''} ${dimSort.k===k?'sorted':''}" data-k="${k}">${dimSort.k===k?(dimSort.dir<0?'▼ ':'▲ '):''}${l}</th>`).join('')}</tr></thead>
+  <tbody>${gs.length ? gs.map(g => `<tr><td class="l"><span class="thumbs">${g.thumbs.map(h => img(h)).join('')}</span>${esc(g.value)}</td>
+    ${DCOLS.slice(1).map(([k]) => `<td>${cell(k,g)}</td>`).join('')}</tr>`).join('')
+    : `<tr><td colspan="${DCOLS.length}" class="empty">라벨된 소재가 없습니다</td></tr>`}
+  <tr class="total"><td class="l">합계</td>${DCOLS.slice(1).map(([k]) => `<td>${k==='count' ? gs.reduce((s,g)=>s+g.count,0)+'개' : cell(k,t)}</td>`).join('')}</tr></tbody>`;
+}
+$('#dim-chips').onclick = e => { const b = e.target.closest('[data-d]'); if (b){ curDim = b.dataset.d; renderDim(); } };
+$('#dim-table').onclick = e => { const th = e.target.closest('th'); if (!th) return; const k = th.dataset.k;
+  dimSort = {k, dir: dimSort.k===k ? -dimSort.dir : -1}; renderDim(); };
+// claude.ai 공유 페이지에서는 downloads 기능으로 저장, 로컬 파일로 열면 일반 다운로드
+const downloadsP = (window.claude && typeof window.claude.use === 'function') ? window.claude.use('downloads').catch(() => null) : null;
+$('#csv').onclick = async () => {
+  const cols = DCOLS.slice(1);
+  const rows = [['축','구분', ...cols.map(c => c[1])]];
+  for (const d of dims) for (const g of D.dimensions[d]) rows.push([d, g.value, ...cols.map(([k]) => k==='count' ? g.count : +(+g[k]).toFixed(['spend','cpa','cpc','revenue','conversions'].includes(k)?0:4))]);
+  const csv = '\ufeff' + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const filename = `creative_structure_${D.period.since}_${D.period.until}.csv`;
+  const note = $('#csv-note');
+  if (downloadsP) {
+    const dl = await downloadsP;
+    if (dl) {
+      try { await dl.save({filename, data: csv}); }
+      catch (e) { if (!e || e.code !== 'declined') { note.hidden = false; note.textContent = '이 화면에서는 파일 저장을 할 수 없습니다.'; } }
+      return;
+    }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = filename; a.click();
+};
+renderDim();
+
+// ── 소재 목록 ──
+let diag = '전체', view = 'table', adSort = {k:'spend', dir:-1}, limit = 50, open = null;
+const ACOLS = [['thumb','소재','l'],['name','소재 이름','l'],['diagnosis','진단','l'],['series', ROAS?'ROAS 추이':`일별 ${CONV}`,'l'],
+  ...(ROAS ? [['spend','광고비'],['impressions','노출'],['clicks','클릭'],['ctr','CTR'],['purchases','구매'],['roas','ROAS'],['cvr','CVR']]
+           : [['spend','광고비'],['impressions','노출'],['clicks','링크 클릭'],['ctr','CTR'],['cpc','CPC'],['conversions',CONV],['cpa',`${CONV}당 비용`],['cvr',RATE]])];
+const NUMCOLS = ACOLS.slice(4);
+function spark(s){
+  const pts = s.map((v,i) => [i,v]).filter(p => p[1] !== null);
+  if (pts.length < 2) return '<span class="desc">—</span>';
+  const W=100,H=26, n=s.length-1||1, max=Math.max(...pts.map(p=>p[1])), min=Math.min(...pts.map(p=>p[1])), r=Math.max(max-min, max*0.3)||1;
+  const d = pts.map((p,i) => `${i?'L':'M'}${(p[0]/n*W).toFixed(1)},${(H-2-(p[1]-min)/r*(H-4)).toFixed(1)}`).join('');
+  const first=pts[0][1], last=pts[pts.length-1][1];
+  const col = last > first*1.15 ? 'var(--spark-up)' : last < first*0.85 ? 'var(--spark-down)' : 'var(--spark)';
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><path d="${d}" fill="none" stroke="${col}" stroke-width="1.5"/></svg>`;
+}
+function filtered(ignoreDiag){
+  const q = $('#q').value.trim().toLowerCase(), min = +$('#minspend').value;
+  return D.ads.filter(a => a.spend >= min && (!q || (a.name+' '+a.sub).toLowerCase().includes(q)) && (ignoreDiag || diag==='전체' || a.diagnosis===diag));
+}
+function renderAds(){
+  const base = filtered(true), list = filtered(false);
+  const cnt = {}; base.forEach(a => cnt[a.diagnosis] = (cnt[a.diagnosis]||0)+1);
+  $('#diag-chips').innerHTML = ['전체', ...D.diagnosis_order].map(d => `<button class="chip ${d===diag?'on':''}" data-g="${d}">${d}<b>${d==='전체'?base.length:(cnt[d]||0)}</b></button>`).join('');
+  $('#ad-count').textContent = `${list.length} / ${D.ads.length}개`;
+  const k = adSort.k;
+  list.sort((a,b) => k==='name'||k==='diagnosis' ? adSort.dir*String(a[k]).localeCompare(String(b[k])) : numCmp(a,b,adSort));
+  const shown = list.slice(0, limit);
+  $('#more').hidden = list.length <= limit;
+  if (!shown.length){ $('#ad-view').innerHTML = '<div class="empty">조건에 맞는 소재가 없습니다</div>'; return; }
+  if (view === 'grid'){
+    $('#ad-view').innerHTML = `<div class="grid">${shown.map(a => `<div class="tile" data-id="${a.ad_id}" title="${esc(a.description||'')}">
+      ${a.thumb ? `<img src="${D.thumbs[a.thumb]}" alt="">` : '<div class="ph"></div>'}
+      <div class="meta"><div class="n">${esc(a.name)}</div><div class="r"><span class="badge b-${a.diagnosis}">${a.diagnosis}</span><span>${ROAS ? 'ROAS '+pct(a.roas,0) : esc(CONV)+' '+int(a.conversions)}</span></div>
+      <div class="r"><span>${won(a.spend)}</span><span>${ROAS ? 'CTR '+pct(a.ctr) : '건당 '+fmtCpa(a.cpa)}</span></div></div></div>`).join('')}</div>`;
+    return;
+  }
+  const sortable = new Set(['name','diagnosis', ...NUMCOLS.map(c => c[0])]);
+  $('#ad-view').innerHTML = `<div class="tbl-wrap"><table><thead><tr>${ACOLS.map(([k,l,c]) => `<th class="${c||''} ${adSort.k===k?'sorted':''}" ${sortable.has(k)?`data-k="${k}"`:''}>${adSort.k===k?(adSort.dir<0?'▼ ':'▲ '):''}${l}</th>`).join('')}</tr></thead><tbody>
+  ${shown.map(a => `<tr class="row" data-id="${a.ad_id}">
+    <td class="l">${img(a.thumb,'th-img big')}</td>
+    <td class="l"><div class="name"><span class="pf">∞ ${esc(a.platform)}</span>${esc(a.name)}</div><div class="subname">${esc(a.sub)}</div>
+      ${a.tags.length ? `<div class="tags">${a.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>` : ''}</td>
+    <td class="l"><span class="badge b-${a.diagnosis}">${a.diagnosis}</span></td>
+    <td class="l">${spark(a.series)}</td>
+    ${NUMCOLS.map(([k]) => `<td>${k==='roas' ? pct(a.roas,0) : cell(k,a)}</td>`).join('')}</tr>
+    ${open===a.ad_id ? detail(a) : ''}`).join('')}</tbody></table></div>`;
+}
+function detail(a){
+  const L = a.labels ? Object.entries(a.labels).map(([k,v]) => `<div><span>${esc(k)}</span> ${esc(v)}</div>`).join('') : '<div><span>라벨 없음</span></div>';
+  return `<tr class="detail"><td colspan="${ACOLS.length}">${a.thumb ? `<img src="${D.thumbs[a.thumb]}" alt="">` : ''}
+    <div style="font-weight:600;margin-bottom:4px">${esc(a.name)}</div>
+    <div class="desc" style="margin-bottom:8px">${esc(a.description || '')}</div>
+    <div class="kv">${L}</div>
+    <div class="kv" style="margin-top:8px">${ROAS ? `<div><span>광고매출</span> ${won(a.revenue)}</div><div><span>객단가</span> ${won(a.aov)}</div>`
+      : `<div><span>${esc(CONV)}</span> ${int(a.conversions)}</div><div><span>${esc(CONV)}당 비용</span> ${fmtCpa(a.cpa)}</div><div><span>${RATE}</span> ${pct(a.cvr,1)}</div><div><span>CPC</span> ${won(a.cpc)}</div>`}<div><span>ad_id</span> ${esc(a.ad_id)}</div></div>
+    <div style="clear:both"></div></td></tr>`;
+}
+$('#diag-chips').onclick = e => { const b = e.target.closest('[data-g]'); if (b){ diag = b.dataset.g; limit = 50; renderAds(); } };
+$('#q').oninput = () => { limit = 50; renderAds(); };
+$('#minspend').onchange = () => { limit = 50; renderAds(); };
+$('#more').onclick = () => { limit += 50; renderAds(); };
+document.querySelector('.seg').onclick = e => { const b = e.target.closest('button'); if (!b) return;
+  view = b.dataset.v; document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x===b)); renderAds(); };
+$('#ad-view').onclick = e => {
+  const th = e.target.closest('th[data-k]');
+  if (th){ const k = th.dataset.k; adSort = {k, dir: adSort.k===k ? -adSort.dir : -1}; renderAds(); return; }
+  const r = e.target.closest('[data-id]');
+  if (r){ if (view==='grid'){ view='table'; document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x.dataset.v==='table')); }
+    open = open===r.dataset.id ? null : r.dataset.id; renderAds(); }
+};
+renderAds();
+}
+
+// ── 비밀번호 잠금 (공유용 사이트는 데이터가 AES-GCM으로 암호화되어 있음) ──
+(() => {
+  if (!RAW.enc) { boot(RAW); return; }
+  const app = document.getElementById('app'), lock = document.getElementById('lock');
+  const form = document.getElementById('lock-form'), pwIn = document.getElementById('lock-pw');
+  const btn = document.getElementById('lock-btn'), err = document.getElementById('lock-err');
+  const remember = document.getElementById('lock-remember');
+  const KEY = 'creative-dashboard-pw';
+  const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  async function decrypt(enc, pw) {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey({name: 'PBKDF2', salt: b64(enc.salt), iterations: enc.iter, hash: 'SHA-256'},
+      base, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
+    const pt = await crypto.subtle.decrypt({name: 'AES-GCM', iv: b64(enc.iv)}, key, b64(enc.ct));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+  async function open(pw, save) {
+    const D = await decrypt(RAW.enc, pw);
+    try { save ? localStorage.setItem(KEY, pw) : localStorage.removeItem(KEY); } catch (e) {}
+    lock.hidden = true; app.hidden = false;
+    boot(D);
+  }
+  app.hidden = true; lock.hidden = false;
+  let saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  if (saved) open(saved, true).catch(() => { try { localStorage.removeItem(KEY); } catch (e) {} pwIn.focus(); });
+  else pwIn.focus();
+  form.onsubmit = async e => {
+    e.preventDefault();
+    btn.disabled = true; btn.textContent = '여는 중…'; err.textContent = '';
+    try { await open(pwIn.value, remember.checked); }
+    catch (x) { err.textContent = '비밀번호가 맞지 않습니다'; pwIn.select(); }
+    finally { btn.disabled = false; btn.textContent = '열기'; }
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+name: 매일 소재 분석
+
+on:
+  schedule:
+    - cron: "47 20 * * *"   # 매일 한국시간 오전 5:47 (UTC 20:47). GitHub 사정으로 조금 늦게 시작될 수 있음
+  workflow_dispatch:         # Actions 탭에서 'Run workflow' 버튼으로 바로 실행
+    inputs:
+      days:
+        description: "분석 기간(일)"
+        default: "30"
+
+concurrency:
+  group: daily-creative
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 이전 데이터 복원 (라벨 캐시·이미지 — 같은 소재는 다시 라벨링하지 않음)
+        uses: actions/cache/restore@v4
+        with:
+          path: data
+          key: creative-data-${{ github.run_id }}
+          restore-keys: creative-data-
+
+      - name: 수집 → 라벨링 → 분석 → 암호화된 사이트 생성
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
+          META_CONVERSION_ACTION: ${{ vars.META_CONVERSION_ACTION }}
+          MIN_SPEND: ${{ vars.MIN_SPEND }}
+          PYTHONUNBUFFERED: "1"
+        run: python -m creative_agent run --days "${{ inputs.days || '30' }}" --site site
+
+      - name: 데이터 저장 (다음 실행에서 재사용)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data
+          key: creative-data-${{ github.run_id }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 버셀 배포
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT: ${{ vars.VERCEL_PROJECT || 'creative-dashboard' }}
+        run: |
+          npx --yes vercel@latest link --yes --project "$VERCEL_PROJECT" --token "$VERCEL_TOKEN" --cwd site
+          npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" --cwd site
