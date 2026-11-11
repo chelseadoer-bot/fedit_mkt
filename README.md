@@ -84,3 +84,21 @@ PC를 켜 두지 않아도 GitHub 서버가 매일 아침(한국시간 5:47경) 
 - 선택: **Variables** 탭에 `VERCEL_PROJECT`(버셀 프로젝트 이름, 기본 `creative-dashboard`),
   `META_CONVERSION_ACTION`, `MIN_SPEND`를 넣어 설정을 바꿀 수 있습니다.
 - 로컬에서 같은 사이트를 만들어 보려면: `DASHBOARD_PASSWORD=... python -m creative_agent run --site site`
+
+## Amplitude 연동 (가입·체험·활성화)
+
+`AMPLITUDE_API_KEY`, `AMPLITUDE_SECRET_KEY`(앰플리튜드 Settings → Projects → General)를 GitHub 시크릿(로컬은 `.env`)에 넣으면
+대시보드에 **퍼널(링크 클릭 → 랜딩 → 가입 → 체험 → 활성화)**, 소재별 **가입·가입당 비용·활성화**, **유입 채널** 패널이 생깁니다.
+
+| 설정 (GitHub Variables 또는 .env) | 기본값 | 설명 |
+|---|---|---|
+| `AMPLITUDE_REGION` | `us` | EU 데이터센터면 `eu` |
+| `AMPLITUDE_SIGNUP_EVENT` | `sign_up` | 가입 이벤트 |
+| `AMPLITUDE_TRIAL_EVENT` | `trial_started` | 체험 시작 이벤트 |
+| `AMPLITUDE_ACTIVATION_EVENT` | `excel_download` | 활성화(첫 가치 경험) 이벤트 |
+| `AMPLITUDE_AD_PROPERTY` | `gp:initial_utm_content` | 광고와 잇는 사용자 속성 |
+| `AMPLITUDE_SOURCE_PROPERTY` | `gp:initial_utm_source` | 유입 채널 사용자 속성 |
+
+- 소재별 연결은 메타 광고 URL 매개변수의 `utm_content`가 **광고 ID(`{{ad.id}}`) 또는 광고 이름(`{{ad.name}}`)**일 때 됩니다.
+- 활성화는 "기간 안에 활성화 이벤트를 한 고유 사용자"입니다(그 기간 가입자만 따로 센 코호트가 아님).
+- 같은 이름의 광고가 여럿이면 가입 수를 광고비 비중으로 나눠 붙입니다.

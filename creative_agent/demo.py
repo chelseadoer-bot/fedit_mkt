@@ -84,3 +84,20 @@ def seed(con, days: int = 14, n_ads: int = 120) -> tuple[str, str]:
                                                          "link_click": clicks, "purchase": purchases})})
     con.commit()
     return str(since), str(until)
+
+
+def fake_amplitude(rep: dict) -> dict:
+    """데모용 가짜 Amplitude 결과(광고 ID별 가입·체험·활성화)."""
+    rnd = random.Random(7)
+    by_ad = {}
+    for a in rep["ads"]:
+        su = round(a["conversions"] * rnd.uniform(0.02, 0.12))
+        tr = round(su * rnd.uniform(0.4, 0.8))
+        by_ad[a["ad_id"]] = {"signups": su, "trials": tr, "activated": round(tr * rnd.uniform(0.2, 0.7))}
+    meta = {k: sum(v[k] for v in by_ad.values()) for k in ("signups", "trials", "activated")}
+    by_source = {"meta": meta, "(none)": {"signups": 31, "trials": 20, "activated": 11},
+                 "naver": {"signups": 12, "trials": 8, "activated": 5}, "linkedin": {"signups": 4, "trials": 2, "activated": 1}}
+    totals = {k: sum(v[k] for v in by_source.values()) for k in meta}
+    return {"events": {"signups": "sign_up", "trials": "trial_started", "activated": "excel_download"},
+            "totals": totals, "by_ad": by_ad, "by_source": by_source,
+            "ad_property": "gp:initial_utm_content", "source_property": "gp:initial_utm_source"}

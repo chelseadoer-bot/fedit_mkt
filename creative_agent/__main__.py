@@ -101,6 +101,19 @@ def main() -> None:
     print("④ 집계/진단")
     rep = analyze.build(con, since, until)
     print(f"   소재 {rep['total_count']}개, 라벨 {rep['labeled_count']}개")
+    from . import amplitude
+    if amplitude.enabled() and a.cmd != "demo":
+        print("④-2 Amplitude 가입·체험·활성화 조회")
+        amplitude.attach(rep, amplitude.fetch(since, until))
+        if rep["amplitude"]:
+            t = rep["amplitude"]["totals"]
+            print(f"   가입 {t['signups']:.0f} · 체험 {t['trials']:.0f} · 활성화 {t['activated']:.0f} "
+                  f"(광고와 연결된 소재 {rep['amplitude']['matched_ads']}개)")
+    elif a.cmd == "demo":
+        from . import demo
+        amplitude.attach(rep, demo.fake_amplitude(rep))
+    else:
+        rep["amplitude"] = None
     if use_ai and rep["labeled_count"]:
         from . import insights
         print("⑤ AI 코멘트 생성")

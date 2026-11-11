@@ -26,7 +26,34 @@
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 -apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Segoe UI",sans-serif;font-variant-numeric:tabular-nums}
-.wrap{max-width:1440px;margin:0 auto;padding:20px 16px 60px}
+.wrap{max-width:1440px;margin:0 auto;padding:20px 16px 60px;min-width:0;flex:1}
+#app{display:flex;align-items:flex-start}
+#app[hidden]{display:none}
+.side{position:sticky;top:0;flex:0 0 184px;height:100vh;padding:22px 12px;border-right:1px solid var(--line);background:var(--card)}
+.side .brand{font-size:14px;font-weight:700;padding:0 10px 14px}
+.side a{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:8px;color:var(--sub);text-decoration:none;font-size:13px;margin-bottom:2px}
+.side a:hover{background:var(--line2);color:var(--text)}
+.side a.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.side a small{font-size:10.5px;color:var(--faint);font-weight:400}
+.side .foot-note{font-size:11px;color:var(--faint);padding:14px 10px 0;border-top:1px solid var(--line);margin-top:12px}
+.sec-title{font-size:16px;font-weight:700;margin:26px 0 10px;scroll-margin-top:12px}
+.sec-title:first-child{margin-top:0}
+@media (max-width:860px){
+  #app{display:block}
+  .side{position:sticky;top:0;z-index:5;height:auto;display:flex;gap:4px;overflow-x:auto;padding:8px 12px;border-right:0;border-bottom:1px solid var(--line)}
+  .side .brand,.side .foot-note{display:none}
+  .side a{white-space:nowrap;margin:0}
+  .side a small{display:none}
+}
+.funnel{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.fstep{display:grid;grid-template-columns:110px 1fr 150px;gap:12px;align-items:center;font-size:12.5px}
+.fstep .bar{height:26px;background:var(--line2);border-radius:6px;overflow:hidden}
+.fstep .bar i{display:block;height:100%;background:var(--accent);opacity:.85;border-radius:6px;min-width:2px}
+.fstep.amp .bar i{background:var(--info)}
+.fstep .n{font-weight:600}
+.fstep .r{text-align:right;color:var(--sub);font-size:11.5px}
+@media (max-width:600px){.fstep{grid-template-columns:80px 1fr;}.fstep .r{grid-column:2;text-align:left}}
+.warn{font-size:12px;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 12px;margin-top:12px}
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
 h1{font-size:20px;margin:0 0 2px}
 .desc{color:var(--sub);font-size:12px}
@@ -111,7 +138,7 @@ tbody tr.row:hover{background:var(--line2)}
 <body>
 <div id="lock" hidden>
   <div class="lock-card">
-    <h1>크리에이티브 소재</h1>
+    <h1>마케팅 대시보드</h1>
     <div class="desc">비밀번호를 입력하면 대시보드가 열립니다</div>
     <form id="lock-form">
       <input id="lock-pw" type="password" placeholder="비밀번호" autocomplete="current-password" required>
@@ -121,16 +148,32 @@ tbody tr.row:hover{background:var(--line2)}
     </form>
   </div>
 </div>
-<div class="wrap" id="app">
+<div id="app">
+<nav class="side" id="side">
+  <div class="brand">마케팅 대시보드</div>
+  <a href="#sec-overview" data-sec="sec-overview">개요 <small>퍼널</small></a>
+  <a href="#sec-creative" data-sec="sec-creative">광고 소재 <small>메타</small></a>
+  <a href="#sec-channels" data-sec="sec-channels" id="nav-channels" hidden>유입 채널 <small>앰플리튜드</small></a>
+  <div class="foot-note">매일 아침 자동 갱신<br><span id="gen-side"></span></div>
+</nav>
+<main class="wrap">
   <header>
     <div>
-      <h1>크리에이티브 소재</h1>
-      <div class="desc">메타 광고 소재(이미지) 단위 성과 · 핵심 전환: <b id="conv-name"></b> · <span id="gen"></span> 생성</div>
+      <h1>마케팅 대시보드</h1>
+      <div class="desc">메타 광고 소재 단위 성과 · 핵심 전환: <b id="conv-name"></b> · <span id="gen"></span> 생성</div>
     </div>
     <div class="period" id="period"></div>
   </header>
 
+  <h2 class="sec-title" id="sec-overview">개요</h2>
   <div class="kpis" id="kpis"></div>
+
+  <section class="card" id="funnel-card" hidden>
+    <h2>퍼널 — 광고에서 활성화까지</h2>
+    <div class="desc" id="funnel-desc"></div>
+    <div class="funnel" id="funnel"></div>
+    <div class="warn" id="funnel-warn" hidden></div>
+  </section>
 
   <section class="card ai" id="ai" hidden>
     <h2>AI 코멘트</h2>
@@ -138,6 +181,7 @@ tbody tr.row:hover{background:var(--line2)}
     <div id="ai-body"></div>
   </section>
 
+  <h2 class="sec-title" id="sec-creative">광고 소재</h2>
   <section class="card">
     <h2>구조별 성과</h2>
     <div class="desc">소재 이미지를 읽어 붙인 라벨로 묶습니다 · <span id="lbl-count"></span></div>
@@ -167,6 +211,16 @@ tbody tr.row:hover{background:var(--line2)}
     <div id="ad-view"></div>
     <button class="more" id="more" hidden>더 보기</button>
   </section>
+
+  <div id="channels-wrap" hidden>
+    <h2 class="sec-title" id="sec-channels">유입 채널</h2>
+    <section class="card">
+      <h2>첫 유입 소스별 가입·활성화</h2>
+      <div class="desc" id="ch-desc"></div>
+      <div class="tbl-wrap" style="margin-top:14px"><table id="ch-table"></table></div>
+    </section>
+  </div>
+</main>
 </div>
 
 <script type="application/json" id="data">__DATA__</script>
@@ -184,6 +238,8 @@ const ROAS = D.goal === 'roas';
 const CONV = (D.conversion && D.conversion.label) || '전환';
 const RATE = D.conversion && D.conversion.is_landing ? '랜딩 도달률' : '전환율';
 const fmtCpa = v => v ? won(v) : '—';
+const AMP = D.amplitude || null;
+const n1 = v => (v >= 10 || v === 0 || Number.isInteger(v)) ? int(v) : v.toFixed(1);
 $('#period').textContent = `${D.period.since} ~ ${D.period.until}`;
 
 // ── 핵심 지표 ──
@@ -194,9 +250,69 @@ $('#period').textContent = `${D.period.since} ~ ${D.period.until}`;
     : [['광고비', won(A.spend), 0, `분석 대상 소재 ${won(T.spend)}`], [CONV, int(A.conversions), 1, '핵심 전환'],
        [`${CONV}당 비용`, fmtCpa(A.cpa), 1], [RATE, pct(A.cvr,1), 0, `링크 클릭 ${int(A.clicks)}회 중`],
        ['CTR', pct(A.ctr)], ['CPC', won(A.cpc)]];
+  if (AMP && !ROAS) {
+    const M = AMP.meta;
+    k.splice(3, 0, ['가입 (메타 유입)', int(M.signups), 1, `전체 채널 ${int(AMP.totals.signups)}명`],
+                   ['가입당 비용', fmtCpa(M.signups ? A.spend / M.signups : 0), 1, `활성화 ${int(M.activated)}명`]);
+  }
   $('#kpis').innerHTML = k.map(([l,v,main,sub]) => `<div class="kpi ${main?'main':''}"><div class="l">${esc(l)}</div><div class="v">${v}</div>${sub?`<div class="s">${esc(sub)}</div>`:''}</div>`).join('');
 })();
 $('#gen').textContent = D.generated_at;
+$('#gen-side').textContent = D.generated_at + ' 기준';
+
+// ── 퍼널 ──
+if (AMP && !ROAS) {
+  const A = D.account, M = AMP.meta, E = AMP.events;
+  const steps = [['링크 클릭', A.clicks], [CONV, A.conversions], [`가입 (${E.signups})`, M.signups, 1],
+                 [`체험 시작 (${E.trials})`, M.trials, 1], [`활성화 (${E.activated})`, M.activated, 1]];
+  const top = Math.max(1, ...steps.map(s => s[1]));
+  $('#funnel-card').hidden = false;
+  $('#funnel-desc').textContent = `메타 광고 → 앰플리튜드 (첫 유입 소스가 meta/facebook/instagram인 사용자) · 광고비 ${won(A.spend)}`;
+  $('#funnel').innerHTML = steps.map(([l, v, amp], i) => {
+    const prev = i ? steps[i-1][1] : 0;
+    const conv = i ? (prev ? pct(v / prev, 1) : '—') : '';
+    const cost = v ? won(A.spend / v) : '—';
+    return `<div class="fstep ${amp ? 'amp' : ''}"><div>${esc(l)}</div>
+      <div class="bar"><i style="width:${Math.max(0.5, v / top * 100)}%"></i></div>
+      <div class="r"><span class="n">${int(v)}</span>${i ? ` · 전환 ${conv}` : ''} · 건당 ${cost}</div></div>`;
+  }).join('');
+  if (AMP.matched_ads === 0 && M.signups > 0) {
+    $('#funnel-warn').hidden = false;
+    $('#funnel-warn').textContent = '메타 유입 가입은 있지만 소재와 연결된 것이 없습니다. 메타 광고 URL 매개변수의 utm_content에 {{ad.id}} 또는 {{ad.name}}을 넣어 주세요.';
+  }
+}
+
+// ── 유입 채널 ──
+if (AMP) {
+  document.getElementById('nav-channels').hidden = false;
+  document.getElementById('channels-wrap').hidden = false;
+  const T = AMP.totals;
+  $('#ch-desc').textContent = `첫 유입 UTM(${AMP.source_property.replace('gp:','')}) 기준 · 활성화 = 기간 내 ${AMP.events.activated} 사용자`;
+  const rows = AMP.sources.filter(r => r.signups || r.trials || r.activated);
+  $('#ch-table').innerHTML = `<thead><tr><th class="l">유입 소스</th><th>가입</th><th>비중</th><th>체험 시작</th><th>체험 전환율</th><th>활성화</th><th>활성화율</th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td class="l">${esc(r.source === '(none)' ? '(직접/UTM 없음)' : r.source)}</td><td>${int(r.signups)}</td>
+      <td>${T.signups ? pct(r.signups / T.signups, 1) : '—'}</td><td>${int(r.trials)}</td>
+      <td>${r.signups ? pct(r.trials / r.signups, 0) : '—'}</td><td>${int(r.activated)}</td>
+      <td>${r.signups ? pct(r.activated / r.signups, 0) : '—'}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">데이터가 없습니다</td></tr>`}
+    <tr class="total"><td class="l">합계</td><td>${int(T.signups)}</td><td>100%</td><td>${int(T.trials)}</td>
+      <td>${T.signups ? pct(T.trials / T.signups, 0) : '—'}</td><td>${int(T.activated)}</td><td>${T.signups ? pct(T.activated / T.signups, 0) : '—'}</td></tr></tbody>`;
+}
+
+// ── 좌측 메뉴: 보고 있는 섹션 강조 ──
+(() => {
+  const links = [...document.querySelectorAll('#side a[data-sec]')];
+  const setOn = id => links.forEach(a => a.classList.toggle('on', a.dataset.sec === id));
+  setOn('sec-overview');
+  links.forEach(a => a.addEventListener('click', () => setTimeout(() => setOn(a.dataset.sec), 50)));
+  addEventListener('scroll', () => {  // 맨 아래까지 내리면 마지막 메뉴 강조
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 4) {
+      const vis = links.filter(a => !a.hidden); setOn(vis[vis.length - 1].dataset.sec);
+    }
+  }, {passive: true});
+  if (!('IntersectionObserver' in window)) return;
+  const io = new IntersectionObserver(es => es.forEach(e => e.isIntersecting && setOn(e.target.id)), {rootMargin: '0px 0px -70% 0px'});
+  links.forEach(a => { const t = document.getElementById(a.dataset.sec); if (t) io.observe(t); });
+})();
 $('#conv-name').textContent = ROAS ? '구매 매출(ROAS)' : CONV;
 $('#lbl-count').textContent = `${D.labeled_count}/${D.total_count}개에 라벨이 있습니다`;
 
@@ -212,16 +328,18 @@ if (D.ai_summary) {
 // ── 구조별 성과 ──
 // 전환당 비용은 전환 0건(값 0)을 항상 맨 뒤로
 const numCmp = (a, b, o) => { const x = a[o.k], y = b[o.k];
-  if (o.k === 'cpa' && (!x || !y)) return (!x) - (!y);
+  if ((o.k === 'cpa' || o.k === 'cps') && (!x || !y)) return (!x) - (!y);
   return o.dir * (x - y); };
 const dims = Object.keys(D.dimensions);
 let curDim = dims[0], dimSort = {k:'spend', dir:-1};
 const DCOLS = ROAS
   ? [['value','구분','l'],['count','소재수'],['spend','광고비'],['revenue','광고매출'],['roas','ROAS'],['ctr','CTR'],['cvr','CVR']]
-  : [['value','구분','l'],['count','소재수'],['spend','광고비'],['conversions',CONV],['cpa',`${CONV}당 비용`],['cvr',RATE],['ctr','CTR'],['cpc','CPC']];
+  : [['value','구분','l'],['count','소재수'],['spend','광고비'],['conversions',CONV],['cpa',`${CONV}당 비용`],['cvr',RATE],['ctr','CTR'],
+     ...(AMP ? [['signups','가입'],['cps','가입당 비용'],['activated','활성화']] : [['cpc','CPC']])];
 const cell = (k, x) => ({count: `${x.count}개`, spend: won(x.spend), revenue: won(x.revenue), roas: pct(x.roas),
   ctr: pct(x.ctr), cvr: pct(x.cvr, ROAS?2:1), conversions: int(x.conversions), cpa: fmtCpa(x.cpa), cpc: won(x.cpc),
-  impressions: int(x.impressions), clicks: int(x.clicks), purchases: int(x.purchases)})[k];
+  impressions: int(x.impressions), clicks: int(x.clicks), purchases: int(x.purchases),
+  signups: x.signups != null ? n1(x.signups) : '—', cps: fmtCpa(x.cps), activated: x.activated != null ? n1(x.activated) : '—'})[k];
 function renderDimChips(){
   $('#dim-chips').innerHTML = dims.map(d => `<button class="chip ${d===curDim?'on':''}" data-d="${esc(d)}">${esc(d)}<b>${D.dimensions[d].length}</b></button>`).join('');
 }
@@ -266,7 +384,8 @@ renderDim();
 let diag = '전체', view = 'table', adSort = {k:'spend', dir:-1}, limit = 50, open = null;
 const ACOLS = [['thumb','소재','l'],['name','소재 이름','l'],['diagnosis','진단','l'],['series', ROAS?'ROAS 추이':`일별 ${CONV}`,'l'],
   ...(ROAS ? [['spend','광고비'],['impressions','노출'],['clicks','클릭'],['ctr','CTR'],['purchases','구매'],['roas','ROAS'],['cvr','CVR']]
-           : [['spend','광고비'],['impressions','노출'],['clicks','링크 클릭'],['ctr','CTR'],['cpc','CPC'],['conversions',CONV],['cpa',`${CONV}당 비용`],['cvr',RATE]])];
+           : [['spend','광고비'],['impressions','노출'],['clicks','링크 클릭'],['ctr','CTR'],['cpc','CPC'],['conversions',CONV],['cpa',`${CONV}당 비용`],['cvr',RATE],
+              ...(AMP ? [['signups','가입'],['cps','가입당 비용'],['activated','활성화']] : [])])];
 const NUMCOLS = ACOLS.slice(4);
 function spark(s){
   const pts = s.map((v,i) => [i,v]).filter(p => p[1] !== null);
