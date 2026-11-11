@@ -90,7 +90,10 @@ def main() -> None:
             print(f"① Meta 인사이트 수집 {since} ~ {until}")
             print(f"   {meta_api.fetch_insights(con, date.fromisoformat(since), date.fromisoformat(until))}행")
             print("② 소재 이미지 수집")
-            print(f"   새 이미지 {meta_api.fetch_creatives(con)}개")
+            try:
+                print(f"   새 이미지 {meta_api.fetch_creatives(con)}개")
+            except meta_api.MetaAPIError as e:  # 이미지 일부를 못 받아도 분석·배포는 계속
+                print(f"   ⚠️ 소재 이미지 수집 중단: {e} — 이미 받은 이미지로 계속 진행합니다")
         from . import labeler
         print("③ Claude 이미지 라벨링 (새 이미지만)")
         print(f"   {labeler.label_pending(con)}개 라벨링")

@@ -9,7 +9,8 @@ import requests
 from . import config, db
 
 GRAPH = "https://graph.facebook.com"
-RETRY_CODES = {4, 17, 32, 613, 80000, 80004}  # 레이트 리밋 계열
+RETRY_CODES = {1, 2, 4, 17, 32, 341, 613, 80000, 80004}  # 레이트 리밋·일시 오류 계열
+PERMANENT_CODES = {10, 100, 190, 200, 803}  # 권한·잘못된 요청 — 재시도해도 안 됨
 
 
 class MetaAPIError(RuntimeError):
@@ -17,17 +18,23 @@ class MetaAPIError(RuntimeError):
 
 
 def _get(url: str, params: dict | None = None) -> dict:
-    for attempt in range(6):
+    """GET + 재시도. 레이트 리밋/일시 오류만 재시도하고, 잘못된 요청(100 등)은 바로 실패."""
+    for attempt in range(5):
         r = requests.get(url, params=params, timeout=60)
         if r.ok:
             return r.json()
-        err = r.json().get("error", {}) if r.headers.get("content-type", "").startswith("application/json") else {}
-        if err.get("code") in RETRY_CODES or r.status_code >= 500:
+        try:
+            err = r.json().get("error", {})
+        except ValueError:
+            err = {}
+        code, msg = err.get("code"), err.get("message", r.text[:300])
+        transient = code in RETRY_CODES or err.get("is_transient") or (r.status_code >= 500 and code not in PERMANENT_CODES)
+        if transient and attempt < 4:
             wait = 2 ** attempt * 5
-            print(f"  ⏳ Meta API 제한/오류({err.get('code', r.status_code)}), {wait}s 후 재시도")
+            print(f"  ⏳ Meta API 일시 오류({code or r.status_code}: {msg[:80]}), {wait}s 후 재시도")
             time.sleep(wait)
             continue
-        raise MetaAPIError(f"{r.status_code}: {err.get('message', r.text[:300])}")
+        raise MetaAPIError(f"{code or r.status_code}: {msg}")
     raise MetaAPIError("재시도 한도 초과")
 
 
@@ -84,8 +91,11 @@ def fetch_insights(con, since: date, until: date) -> int:
     return n
 
 
+CREATIVE_FIELDS = "creative{id,image_url,thumbnail_url,object_story_spec}"
+
+
 def _creative_image_url(creative: dict) -> str | None:
-    """대표 이미지 URL: 단일 이미지 > 링크 이미지 > 영상 썸네일 > 메타가 만든 썸네일(캐러셀은 첫 장)."""
+    """대표 이미지 URL: 단일 이미지 > 링크 이미지 > 영상 썸네일. 없으면 None(→ 큰 썸네일을 따로 요청)."""
     if creative.get("image_url"):
         return creative["image_url"]
     spec = creative.get("object_story_spec") or {}
@@ -95,7 +105,38 @@ def _creative_image_url(creative: dict) -> str | None:
     video = spec.get("video_data") or {}
     if video.get("image_url"):
         return video["image_url"]
-    return creative.get("thumbnail_url")
+    return None
+
+
+def _big_thumbnail(creative: dict) -> str | None:
+    """캐러셀·다이내믹 소재 등은 메타가 만든 썸네일을 600px로 요청."""
+    if not creative.get("id"):
+        return creative.get("thumbnail_url")
+    try:
+        data = _get(f"{GRAPH}/{config.META_API_VERSION}/{creative['id']}", {
+            "fields": "thumbnail_url", "thumbnail_width": 600, "thumbnail_height": 600,
+            "access_token": config.META_ACCESS_TOKEN,
+        })
+        return data.get("thumbnail_url") or creative.get("thumbnail_url")
+    except MetaAPIError:
+        return creative.get("thumbnail_url")
+
+
+def _lookup_ads(ad_ids: list[str]) -> dict:
+    """광고 ID 여러 개를 한 번에 조회. 묶음이 실패하면(삭제된 광고 등) 하나씩 다시 조회하고 실패한 것만 건너뜀."""
+    url = f"{GRAPH}/{config.META_API_VERSION}/"
+    try:
+        return _get(url, {"ids": ",".join(ad_ids), "fields": CREATIVE_FIELDS,
+                          "access_token": config.META_ACCESS_TOKEN})
+    except MetaAPIError as e:
+        if len(ad_ids) == 1:
+            print(f"  ⚠️ 광고 {ad_ids[0]} 소재 조회 실패 — 건너뜀 ({e})")
+            return {}
+        print(f"  ↻ 묶음 조회 실패({e}) — 하나씩 다시 조회합니다")
+        out = {}
+        for ad_id in ad_ids:
+            out.update(_lookup_ads([ad_id]))
+        return out
 
 
 def fetch_creatives(con) -> int:
@@ -103,17 +144,10 @@ def fetch_creatives(con) -> int:
     config.IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     pending = [r["ad_id"] for r in con.execute("SELECT ad_id FROM ads WHERE image_hash IS NULL")]
     n = 0
-    url = f"{GRAPH}/{config.META_API_VERSION}/"
     for i in range(0, len(pending), 50):
-        batch = pending[i:i + 50]
-        data = _get(url, {
-            "ids": ",".join(batch),
-            "fields": "creative{image_url,thumbnail_url,object_story_spec}",
-            "thumbnail_width": 600, "thumbnail_height": 600,
-            "access_token": config.META_ACCESS_TOKEN,
-        })
-        for ad_id, ad in data.items():
-            img_url = _creative_image_url(ad.get("creative") or {})
+        for ad_id, ad in _lookup_ads(pending[i:i + 50]).items():
+            creative = ad.get("creative") or {}
+            img_url = _creative_image_url(creative) or _big_thumbnail(creative)
             if not img_url:
                 continue
             try:
