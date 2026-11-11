@@ -3,6 +3,13 @@ name: 매일 소재 분석
 on:
   schedule:
     - cron: "47 20 * * *"   # 매일 한국시간 오전 5:47 (UTC 20:47). GitHub 사정으로 조금 늦게 시작될 수 있음
+  push:                      # 코드나 경쟁사 스크린샷이 바뀌면 바로 다시 실행 (버튼 안 눌러도 됨)
+    branches: [main]
+    paths:
+      - "creative_agent/**"
+      - "competitors/**"
+      - "requirements.txt"
+      - ".github/workflows/**"
   workflow_dispatch:         # Actions 탭에서 'Run workflow' 버튼으로 바로 실행
     inputs:
       days:
