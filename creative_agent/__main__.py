@@ -98,26 +98,33 @@ def main() -> None:
         print("③ Claude 이미지 라벨링 (새 이미지만)")
         print(f"   {labeler.label_pending(con)}개 라벨링")
 
-    print("④ 집계/진단")
-    rep = analyze.build(con, since, until)
-    print(f"   소재 {rep['total_count']}개, 라벨 {rep['labeled_count']}개")
+    print("④ 집계/진단 (기간별)")
     from . import amplitude
-    if amplitude.enabled() and a.cmd != "demo":
-        print("④-2 Amplitude 가입·체험·활성화 조회")
-        amplitude.attach(rep, amplitude.fetch(since, until))
-        if rep["amplitude"]:
+    use_amp = amplitude.enabled() and a.cmd != "demo"
+    views = []
+    for key, label, s_, u_ in report.ranges(since, until):
+        rep = analyze.build(con, s_, u_)
+        rep.update(key=key, label=label)
+        if use_amp:
+            amplitude.attach(rep, amplitude.fetch(s_, u_))
+        elif a.cmd == "demo":
+            from . import demo
+            amplitude.attach(rep, demo.fake_amplitude(rep))
+        else:
+            rep["amplitude"] = None
+        amp_txt = ""
+        if rep.get("amplitude"):
             t = rep["amplitude"]["totals"]
-            print(f"   가입 {t['signups']:.0f} · 체험 {t['trials']:.0f} · 활성화 {t['activated']:.0f} "
-                  f"(광고와 연결된 소재 {rep['amplitude']['matched_ads']}개)")
-    elif a.cmd == "demo":
-        from . import demo
-        amplitude.attach(rep, demo.fake_amplitude(rep))
-    else:
-        rep["amplitude"] = None
-    if use_ai and rep["labeled_count"]:
+            amp_txt = (f" · 가입 {t['signups']:.0f} · 체험 {t['trials']:.0f} · 활성화 {t['activated']:.0f}"
+                       f" (광고와 연결된 소재 {rep['amplitude']['matched_ads']}개)")
+        print(f"   {label}: 소재 {rep['total_count']}개, 라벨 {rep['labeled_count']}개{amp_txt}")
+        views.append(rep)
+    default = next((v for v in views if v["key"] == "30d"), views[-1])
+    if use_ai and default["labeled_count"]:
         from . import insights
-        print("⑤ AI 코멘트 생성")
-        rep["ai_summary"] = insights.generate(rep)
+        print(f"⑤ AI 코멘트 생성 ({default['label']} 기준)")
+        default["ai_summary"] = insights.generate(default)
+    rep = report.bundle(views, default["key"])
     out = report.render(rep)
     print(f"✅ 대시보드: {out}")
     if a.site:

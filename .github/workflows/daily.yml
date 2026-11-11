@@ -6,8 +6,8 @@ on:
   workflow_dispatch:         # Actions 탭에서 'Run workflow' 버튼으로 바로 실행
     inputs:
       days:
-        description: "분석 기간(일)"
-        default: "30"
+        description: "수집 기간(일) — 대시보드에서 7·14·30·90일·이번 달·지난달을 고를 수 있음"
+        default: "90"
 
 concurrency:
   group: daily-creative
@@ -47,7 +47,7 @@ jobs:
           META_CONVERSION_ACTION: ${{ vars.META_CONVERSION_ACTION }}
           MIN_SPEND: ${{ vars.MIN_SPEND }}
           PYTHONUNBUFFERED: "1"
-        run: python -m creative_agent run --days "${{ inputs.days || '30' }}" --site site
+        run: python -m creative_agent run --days "${{ inputs.days || '90' }}" --site site
 
       - name: 데이터 저장 (다음 실행에서 재사용)
         if: always()

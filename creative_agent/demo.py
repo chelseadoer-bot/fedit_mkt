@@ -39,7 +39,7 @@ def im_bytes(im) -> bytes:
     return b.getvalue()
 
 
-def seed(con, days: int = 14, n_ads: int = 120) -> tuple[str, str]:
+def seed(con, days: int = 40, n_ads: int = 120) -> tuple[str, str]:
     rnd = random.Random(42)
     config.IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     until = date.today() - timedelta(days=1)

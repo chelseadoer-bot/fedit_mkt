@@ -57,7 +57,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 -apple-system
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
 h1{font-size:20px;margin:0 0 2px}
 .desc{color:var(--sub);font-size:12px}
-.period{font-size:12px;color:var(--sub);border:1px solid var(--line);background:var(--card);padding:6px 10px;border-radius:8px}
+.period{font:inherit;font-size:12.5px;color:var(--text);border:1px solid var(--line);background:var(--card);padding:7px 10px;border-radius:8px;cursor:pointer;max-width:100%}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px}
 .card h2{font-size:15px;margin:0 0 2px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
@@ -162,7 +162,7 @@ tbody tr.row:hover{background:var(--line2)}
       <h1>마케팅 대시보드</h1>
       <div class="desc">메타 광고 소재 단위 성과 · 핵심 전환: <b id="conv-name"></b> · <span id="gen"></span> 생성</div>
     </div>
-    <div class="period" id="period"></div>
+    <select class="period" id="range" aria-label="기간 선택"></select>
   </header>
 
   <h2 class="sec-title" id="sec-overview">개요</h2>
@@ -240,7 +240,6 @@ const RATE = D.conversion && D.conversion.is_landing ? '랜딩 도달률' : '전
 const fmtCpa = v => v ? won(v) : '—';
 const AMP = D.amplitude || null;
 const n1 = v => (v >= 10 || v === 0 || Number.isInteger(v)) ? int(v) : v.toFixed(1);
-$('#period').textContent = `${D.period.since} ~ ${D.period.until}`;
 
 // ── 핵심 지표 ──
 (() => {
@@ -261,6 +260,7 @@ $('#gen').textContent = D.generated_at;
 $('#gen-side').textContent = D.generated_at + ' 기준';
 
 // ── 퍼널 ──
+$('#funnel-card').hidden = true; $('#funnel-warn').hidden = true;
 if (AMP && !ROAS) {
   const A = D.account, M = AMP.meta, E = AMP.events;
   const steps = [['링크 클릭', A.clicks], [CONV, A.conversions], [`가입 (${E.signups})`, M.signups, 1],
@@ -283,6 +283,8 @@ if (AMP && !ROAS) {
 }
 
 // ── 유입 채널 ──
+document.getElementById('nav-channels').hidden = !AMP;
+document.getElementById('channels-wrap').hidden = !AMP;
 if (AMP) {
   document.getElementById('nav-channels').hidden = false;
   document.getElementById('channels-wrap').hidden = false;
@@ -298,8 +300,9 @@ if (AMP) {
       <td>${T.signups ? pct(T.trials / T.signups, 0) : '—'}</td><td>${int(T.activated)}</td><td>${T.signups ? pct(T.activated / T.signups, 0) : '—'}</td></tr></tbody>`;
 }
 
-// ── 좌측 메뉴: 보고 있는 섹션 강조 ──
-(() => {
+// ── 좌측 메뉴: 보고 있는 섹션 강조 (기간을 바꿔 다시 그려도 한 번만 설정) ──
+if (!window.__navInit) (() => {
+  window.__navInit = true;
   const links = [...document.querySelectorAll('#side a[data-sec]')];
   const setOn = id => links.forEach(a => a.classList.toggle('on', a.dataset.sec === id));
   setOn('sec-overview');
@@ -317,9 +320,9 @@ $('#conv-name').textContent = ROAS ? '구매 매출(ROAS)' : CONV;
 $('#lbl-count').textContent = `${D.labeled_count}/${D.total_count}개에 라벨이 있습니다`;
 
 // ── AI 코멘트 ──
+$('#ai').hidden = !D.ai_summary;
 if (D.ai_summary) {
   const a = D.ai_summary;
-  $('#ai').hidden = false;
   $('#ai-body').innerHTML = `<div class="head">${esc(a.headline)}</div>
     <h3>발견</h3><ul>${a.findings.map(f => `<li><b>${esc(f.title)}</b> — ${esc(f.detail)}</li>`).join('')}</ul>
     ${a.actions && a.actions.length ? `<h3>다음 액션</h3><ul>${a.actions.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}`;
@@ -454,9 +457,27 @@ $('#ad-view').onclick = e => {
 renderAds();
 }
 
+// ── 기간 선택: 기간별로 미리 계산된 리포트 중 하나를 골라 화면 전체를 다시 그림 ──
+function start(B) {
+  const views = B.views || [B];
+  const sel = document.getElementById('range');
+  const KEYR = 'creative-dashboard-range';
+  const keyOf = v => v.key || 'only';
+  let cur = B.default || keyOf(views[0]);
+  try { const saved = localStorage.getItem(KEYR); if (saved && views.some(v => keyOf(v) === saved)) cur = saved; } catch (e) {}
+  sel.innerHTML = views.map(v => `<option value="${keyOf(v)}">${v.label ? v.label + ' · ' : ''}${v.period.since} ~ ${v.period.until}</option>`).join('');
+  sel.value = cur;
+  const show = k => {
+    const v = views.find(x => keyOf(x) === k) || views[0];
+    boot({...v, thumbs: B.thumbs || v.thumbs || {}, generated_at: B.generated_at || v.generated_at});
+  };
+  sel.onchange = () => { try { localStorage.setItem(KEYR, sel.value); } catch (e) {} show(sel.value); };
+  show(cur);
+}
+
 // ── 비밀번호 잠금 (공유용 사이트는 데이터가 AES-GCM으로 암호화되어 있음) ──
 (() => {
-  if (!RAW.enc) { boot(RAW); return; }
+  if (!RAW.enc) { start(RAW); return; }
   const app = document.getElementById('app'), lock = document.getElementById('lock');
   const form = document.getElementById('lock-form'), pwIn = document.getElementById('lock-pw');
   const btn = document.getElementById('lock-btn'), err = document.getElementById('lock-err');
@@ -474,7 +495,7 @@ renderAds();
     const D = await decrypt(RAW.enc, pw);
     try { save ? localStorage.setItem(KEY, pw) : localStorage.removeItem(KEY); } catch (e) {}
     lock.hidden = true; app.hidden = false;
-    boot(D);
+    start(D);
   }
   app.hidden = true; lock.hidden = false;
   let saved = null;
