@@ -2,7 +2,7 @@ name: 매일 소재 분석
 
 on:
   schedule:
-    - cron: "47 20 * * *"   # 매일 한국시간 오전 5:47 (UTC 20:47). GitHub 사정으로 조금 늦게 시작될 수 있음
+    - cron: "47 20,3,9 * * *"   # 매일 한국시간 05:47 · 12:47 · 18:47 (UTC 20:47·03:47·09:47). 조금 늦게 시작될 수 있음
   push:                      # 코드나 경쟁사 스크린샷이 바뀌면 바로 다시 실행 (버튼 안 눌러도 됨)
     branches: [main]
     paths:
@@ -55,6 +55,7 @@ jobs:
           AMPLITUDE_TRIAL_DAYS: ${{ vars.AMPLITUDE_TRIAL_DAYS }}
           AMPLITUDE_PAID_EVENT: ${{ vars.AMPLITUDE_PAID_EVENT }}
           AMPLITUDE_PAID_WINDOW_DAYS: ${{ vars.AMPLITUDE_PAID_WINDOW_DAYS }}
+          SHOW_FULL_ACCOUNT: ${{ vars.SHOW_FULL_ACCOUNT }}
           META_CONVERSION_ACTION: ${{ vars.META_CONVERSION_ACTION }}
           MIN_SPEND: ${{ vars.MIN_SPEND }}
           PYTHONUNBUFFERED: "1"

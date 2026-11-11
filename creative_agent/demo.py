@@ -105,3 +105,24 @@ def fake_amplitude(rep: dict) -> dict:
             "activation_steps": ["trial_started", "brand_filter_changed"], "trial_days": 5, "paid_window_days": 14,
             "totals": totals, "by_ad": by_ad, "by_source": by_source,
             "ad_property": "gp:initial_utm_content", "source_property": "gp:initial_utm_source"}
+
+
+def fake_accounts() -> dict:
+    """데모용 가입 계정 활동."""
+    rnd = random.Random(11)
+    statuses = ["체험 중 D-3", "체험 중 D-1", "이탈 위험", "체험 종료", "가입만", "유료", "기존 가입자"]
+    rows = []
+    for i in range(14):
+        st = rnd.choice(statuses)
+        acts = [f"{k} {rnd.randint(1, 20)}회" for k in rnd.sample(["상품 상세", "폴더 저장", "브랜드 필터", "엑셀 완성", "상품 목록 조회"], 3)]
+        src = rnd.choice(["meta", "meta", "lead_mail", "(직접)", "naver"])
+        rows.append({"account": f"user{i:02d}***@example.com", "plan": rnd.choice(["free", "trial", "pro"]),
+                     "account_type": rnd.choice(["personal", "company"]), "source": src,
+                     "content": "261020_q_refc_shop_v1" if src == "meta" else None, "meta": src in ("meta", "lead_mail"),
+                     "signup": f"2026-11-{rnd.randint(1, 10):02d}", "trial": None if st == "가입만" else f"2026-11-{rnd.randint(5, 10):02d}",
+                     "status": st, "last_seen": f"2026-11-{rnd.randint(6, 11):02d} {rnd.randint(9, 22):02d}:{rnd.randint(0, 59):02d}",
+                     "today": rnd.random() < 0.3, "yesterday": rnd.random() < 0.4, "visit_days_7": rnd.randint(1, 6),
+                     "summary": f"11/0{rnd.randint(1, 9)} 가입 → " + " · ".join(acts) + f" → 브랜드 {rnd.randint(1, 5)}개 모니터링"})
+    rows.sort(key=lambda r: r["last_seen"], reverse=True)
+    return {"generated_kst": "2026-11-11 13:00", "days": 30, "masked": True,
+            "today_count": sum(r["today"] for r in rows), "rows": rows}

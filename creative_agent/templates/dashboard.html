@@ -69,6 +69,12 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 -apple-system
 .ctile .meta{padding:10px 12px;font-size:12px}
 .ctile .hl{font-weight:600;font-size:12.5px;margin:2px 0 6px}
 .ctile .st{color:var(--sub);font-size:11.5px;margin-top:6px}
+.b-유료{background:var(--good-soft);color:var(--good)}
+.b-체험중{background:var(--info-soft);color:var(--info)}
+.b-이탈위험{background:var(--bad-soft);color:var(--bad)}
+.b-체험종료,.b-가입만,.b-기존가입자{background:var(--muted-soft);color:var(--sub)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:6px}
+.acc-sum{white-space:normal;text-align:left;min-width:280px;font-size:12px;color:var(--text)}
 .warn{font-size:12px;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 12px;margin-top:12px}
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
 h1{font-size:20px;margin:0 0 2px}
@@ -170,6 +176,7 @@ tbody tr.row:hover{background:var(--line2)}
   <a href="#sec-overview" data-sec="sec-overview">개요 <small>퍼널</small></a>
   <a href="#sec-creative" data-sec="sec-creative">광고 소재 <small>메타</small></a>
   <a href="#sec-channels" data-sec="sec-channels" id="nav-channels" hidden>유입 채널 <small>앰플리튜드</small></a>
+  <a href="#sec-accounts" data-sec="sec-accounts" id="nav-accounts" hidden>가입 계정 <small id="nav-acc-n"></small></a>
   <a href="#sec-comp" data-sec="sec-comp" id="nav-comp" hidden>경쟁사 광고 <small>참고</small></a>
   <div class="foot-note">매일 아침 자동 갱신<br><span id="gen-side"></span></div>
 </nav>
@@ -240,6 +247,17 @@ tbody tr.row:hover{background:var(--line2)}
       <h2>소재와 연결되지 않은 utm_content</h2>
       <div class="desc">앰플리튜드 가입자의 첫 유입 utm_content 중 메타 광고 이름(또는 ID)과 일치하지 않는 값 — 광고가 아닌 경로(예: 인스타 프로필 링크)라면 정상이고, 광고인데 여기 보이면 광고 이름과 utm_content 값이 다른지 확인해 주세요</div>
       <div class="tbl-wrap" style="margin-top:14px"><table id="um-table" style="min-width:480px"></table></div>
+    </section>
+  </div>
+
+  <div id="acc-wrap" hidden>
+    <h2 class="sec-title" id="sec-accounts">가입 계정</h2>
+    <section class="card">
+      <h2>계정별 최근 활동</h2>
+      <div class="desc" id="acc-desc"></div>
+      <div class="toolbar"><input id="acc-q" type="search" placeholder="계정 · 유입 · 행동 검색"></div>
+      <div class="chips" id="acc-chips"></div>
+      <div class="tbl-wrap"><table id="acc-table"></table></div>
     </section>
   </div>
 
@@ -359,6 +377,39 @@ if (AMP) {
       <td>${M.signups ? pct(M.trials / M.signups, 0) : '—'}</td><td>${int(M.activated)}</td><td>${M.trials ? pct(M.activated / M.trials, 0) : '—'}</td>${paidCells(M)}</tr>
     <tr class="total"><td class="l">전체 합계</td><td>${int(T.signups)}</td><td>100%</td><td>${int(T.trials)}</td>
       <td>${T.signups ? pct(T.trials / T.signups, 0) : '—'}</td><td>${int(T.activated)}</td><td>${T.trials ? pct(T.activated / T.trials, 0) : '—'}</td>${paidCells(T)}</tr></tbody>`;
+}
+
+// ── 가입 계정 (기간 선택과 무관하게 항상 최근 30일) ──
+{
+  const AC = D.accounts && D.accounts.rows ? D.accounts : null;
+  document.getElementById('nav-accounts').hidden = !AC;
+  document.getElementById('acc-wrap').hidden = !AC;
+  if (AC) {
+    $('#nav-acc-n').textContent = `오늘 ${AC.today_count}명`;
+    $('#acc-desc').textContent = `최근 ${AC.days}일 동안 활동한 가입 계정 ${AC.rows.length}개 · ${AC.generated_kst} 기준 (앰플리튜드 데이터는 1~2시간 늦게 반영)`
+      + (AC.masked ? ' · 계정 정보는 일부 가려서 표시' : '') + ' · 이 표는 위의 기간 선택과 상관없이 항상 최신';
+    let accF = '전체';
+    const F = {'전체': () => true, '오늘 방문': r => r.today, '어제 방문': r => r.yesterday,
+               '체험 중': r => r.status.startsWith('체험 중'), '이탈 위험': r => r.status === '이탈 위험',
+               '유료': r => r.status === '유료', '메타 유입': r => r.meta};
+    const badgeCls = st => 'b-' + st.replace(/\s|D-\d+/g, '').replace('체험중', '체험중');
+    const renderAcc = () => {
+      const q = $('#acc-q').value.trim().toLowerCase();
+      const base = AC.rows.filter(r => !q || [r.account, r.source, r.content, r.summary, r.status].join(' ').toLowerCase().includes(q));
+      $('#acc-chips').innerHTML = Object.keys(F).map(k => `<button class="chip ${k===accF?'on':''}" data-f="${k}">${k}<b>${base.filter(F[k]).length}</b></button>`).join('');
+      const list = base.filter(F[accF]);
+      $('#acc-table').innerHTML = `<thead><tr><th class="l">계정</th><th class="l">상태</th><th class="l">마지막 방문</th><th>최근 7일</th><th class="l">유입</th><th class="l">한 줄 요약</th></tr></thead><tbody>
+        ${list.map(r => `<tr><td class="l">${r.today ? '<span class="dot" title="오늘 방문"></span>' : ''}${esc(r.account)}${r.plan ? `<div class="subname">${esc(r.plan)}${r.account_type ? ' · ' + esc(r.account_type) : ''}</div>` : ''}</td>
+          <td class="l"><span class="badge ${badgeCls(r.status)}">${esc(r.status)}</span></td>
+          <td class="l">${esc(r.last_seen)}${r.today ? ' <span class="tag">오늘</span>' : r.yesterday ? ' <span class="tag">어제</span>' : ''}</td>
+          <td>${r.visit_days_7}일</td>
+          <td class="l">${esc(r.source)}${r.meta ? ' <span class="tag">메타</span>' : ''}${r.content ? `<div class="subname">${esc(r.content)}</div>` : ''}</td>
+          <td class="acc-sum">${esc(r.summary)}</td></tr>`).join('') || `<tr><td colspan="6" class="empty">해당하는 계정이 없습니다</td></tr>`}</tbody>`;
+    };
+    $('#acc-chips').onclick = e => { const b = e.target.closest('[data-f]'); if (b) { accF = b.dataset.f; renderAcc(); } };
+    $('#acc-q').oninput = renderAcc;
+    renderAcc();
+  }
 }
 
 // ── 경쟁사 광고 ──
@@ -587,7 +638,7 @@ function start(B) {
   const show = k => {
     const v = views.find(x => keyOf(x) === k) || views[0];
     boot({...v, thumbs: B.thumbs || v.thumbs || {}, generated_at: B.generated_at || v.generated_at,
-          competitors: B.competitors || null});
+          competitors: B.competitors || null, accounts: B.accounts || null});
   };
   sel.onchange = () => { try { localStorage.setItem(KEYR, sel.value); } catch (e) {} show(sel.value); };
   show(cur);

@@ -247,3 +247,146 @@ def debug(since: str, until: str) -> None:
         print(f"  [퍼널] {' → '.join(evs)} (전환 기간 {w}일): 단계별 인원 {d.get('cumulativeRaw')} · "
               f"전환 시간 중앙값 {[fmt_ms(x) for x in med]} · 평균 {[fmt_ms(x) for x in avg]}")
     print(f"  응답 키: {d.get('keys')}")
+
+
+# ───────────────────────── 계정별 활동 (Export API) ─────────────────────────
+import gzip
+import io
+import zipfile
+from collections import Counter, defaultdict
+from datetime import date as _date, datetime as _dt, timedelta as _td, timezone as _tz
+
+KST = _tz(_td(hours=9))
+SHOW_FULL_ACCOUNT = (os.getenv("SHOW_FULL_ACCOUNT") or "").lower() in ("1", "true", "yes")
+# 요약에 쓰는 행동 (이벤트 → 한글 이름). 자동 수집 이벤트는 '페이지 조회'만 셈
+ACTION_LABELS = {
+    "product_detail_viewed": "상품 상세", "products_loaded": "상품 목록 조회", "folder_save": "폴더 저장",
+    "excel_download": "엑셀 완성", "brand_filter_changed": "브랜드 필터", "feature_viewed": "기능 조회",
+    "fedi_chat_sent": "페디 채팅", "Page Viewed": "페이지 조회", "[Amplitude] Page Viewed": "페이지 조회",
+}
+
+
+def _export_day(day: _date, cache_dir) -> list[dict]:
+    """하루치(UTC) 원본 이벤트. 이틀 이상 지난 날은 data/amp_export/에 캐시."""
+    cache = cache_dir / f"{day:%Y%m%d}.jsonl.gz"
+    fresh = (_dt.now(_tz.utc).date() - day).days < 2
+    if cache.exists() and not fresh:
+        with gzip.open(cache, "rt", encoding="utf-8") as f:
+            return [json.loads(l) for l in f if l.strip()]
+    r = requests.get(f"{_base()}/api/2/export", params={"start": f"{day:%Y%m%d}T00", "end": f"{day:%Y%m%d}T23"},
+                     auth=(API_KEY, SECRET_KEY), timeout=300)
+    if r.status_code == 404:  # 그날 데이터 없음
+        events = []
+    elif not r.ok:
+        raise AmplitudeError(f"export {r.status_code}: {r.text[:200]}")
+    else:
+        events = []
+        with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+            for name in z.namelist():
+                if name.endswith(".gz"):
+                    for line in gzip.decompress(z.read(name)).decode("utf-8").splitlines():
+                        if line.strip():
+                            events.append(json.loads(line))
+    keep = ("event_type", "event_time", "user_id", "amplitude_id", "user_properties", "event_properties")
+    slim = [{k: e.get(k) for k in keep} for e in events]
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    with gzip.open(cache, "wt", encoding="utf-8") as f:
+        for e in slim:
+            f.write(json.dumps(e, ensure_ascii=False) + "\n")
+    return slim
+
+
+def _mask(uid: str) -> str:
+    if SHOW_FULL_ACCOUNT or not uid:
+        return uid or "(익명)"
+    if "@" in uid:
+        name, dom = uid.split("@", 1)
+        return f"{name[:2]}***@{dom}"
+    return uid[:4] + "…" if len(uid) > 6 else uid[:2] + "…"
+
+
+def _parse_time(s: str) -> _dt:
+    return _dt.fromisoformat(s.replace(" ", "T")[:26]).replace(tzinfo=_tz.utc).astimezone(KST)
+
+
+def accounts(days: int = 30) -> dict | None:
+    """가입 계정(user_id가 있는 사용자)별 최근 활동 한 줄 요약."""
+    if not enabled():
+        return None
+    from . import config
+    cache_dir = config.DATA_DIR / "amp_export"
+    today_utc = _dt.now(_tz.utc).date()
+    try:
+        events = []
+        for i in range(days, -1, -1):
+            events += _export_day(today_utc - _td(days=i), cache_dir)
+    except (AmplitudeError, requests.RequestException, zipfile.BadZipFile, ValueError) as e:
+        print(f"  ⚠️ 계정별 활동 조회 실패 — 건너뜀 ({e})")
+        return None
+
+    now = _dt.now(KST)
+    today, yesterday = now.date(), now.date() - _td(days=1)
+    by_user: dict[str, list] = defaultdict(list)
+    props: dict[str, dict] = {}
+    for e in events:
+        uid = e.get("user_id")
+        if not uid:
+            continue
+        by_user[str(uid)].append(e)
+        if e.get("user_properties"):
+            props[str(uid)] = {**props.get(str(uid), {}), **e["user_properties"]}
+
+    rows = []
+    for uid, evs in by_user.items():
+        evs.sort(key=lambda e: e["event_time"])
+        times = [_parse_time(e["event_time"]) for e in evs]
+        types = [e["event_type"] for e in evs]
+        first_of = {}
+        for t, ty in zip(times, types):
+            first_of.setdefault(ty, t)
+        signup = first_of.get(EVENTS["signups"])
+        trial = first_of.get(EVENTS["trials"])
+        paid = first_of.get(EVENTS["paid"]) if "paid" in EVENTS else None
+        last = times[-1]
+        visit_days = {t.date() for t in times}
+        counts = Counter(ACTION_LABELS[ty] for ty in types if ty in ACTION_LABELS)
+        p = props.get(uid, {})
+        brands = p.get("monitored_brands")
+        n_brands = len(brands) if isinstance(brands, list) else None
+
+        if paid:
+            status = "유료"
+        elif trial:
+            left = TRIAL_DAYS - (now - trial).days
+            if left > 0:
+                status = "이탈 위험" if (now - last).days >= 2 else f"체험 중 D-{left}"
+            else:
+                status = "체험 종료"
+        else:
+            status = "가입만" if signup else "기존 가입자"
+
+        src = p.get("initial_utm_source") or "(직접)"
+        content = p.get("initial_utm_content")
+        bits = []
+        if signup:
+            bits.append(f"{signup:%m/%d} 가입")
+        if trial:
+            bits.append(f"{trial:%m/%d} 체험 시작")
+        if paid:
+            bits.append(f"{paid:%m/%d} 결제")
+        acts = [f"{k} {v}회" for k, v in counts.most_common() if k != "페이지 조회"][:4]
+        bits.append(" · ".join(acts) if acts else "핵심 행동 없음")
+        if n_brands:
+            bits.append(f"브랜드 {n_brands}개 모니터링")
+        rows.append({
+            "account": _mask(uid), "plan": p.get("plan"), "account_type": p.get("account_type"),
+            "source": src, "content": content, "meta": is_meta(src),
+            "signup": f"{signup:%Y-%m-%d}" if signup else None, "trial": f"{trial:%Y-%m-%d}" if trial else None,
+            "status": status, "last_seen": f"{last:%Y-%m-%d %H:%M}",
+            "today": today in visit_days, "yesterday": yesterday in visit_days,
+            "visit_days_7": sum(1 for d in visit_days if (today - d).days < 7),
+            "summary": " → ".join(bits),
+        })
+    rows.sort(key=lambda r: r["last_seen"], reverse=True)
+    return {"generated_kst": f"{now:%Y-%m-%d %H:%M}", "days": days, "masked": not SHOW_FULL_ACCOUNT,
+            "today_count": sum(r["today"] for r in rows), "rows": rows}
