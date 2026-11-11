@@ -266,18 +266,12 @@ ACTION_LABELS = {
 }
 
 
-def _export_day(day: _date, cache_dir) -> list[dict]:
-    """하루치(UTC) 원본 이벤트. 이틀 이상 지난 날은 data/amp_export/에 캐시."""
-    cache = cache_dir / f"{day:%Y%m%d}.jsonl.gz"
-    fresh = (_dt.now(_tz.utc).date() - day).days < 2
-    if cache.exists() and not fresh:
-        with gzip.open(cache, "rt", encoding="utf-8") as f:
-            return [json.loads(l) for l in f if l.strip()]
+def _export_range(start: str, end: str) -> list[dict]:
+    """Export API 한 번 호출(start/end = YYYYMMDDTHH, UTC). 데이터 없으면 []."""
     content, status = None, None
     for attempt in range(2):
         try:
-            with requests.get(f"{_base()}/api/2/export",
-                              params={"start": f"{day:%Y%m%d}T00", "end": f"{day:%Y%m%d}T23"},
+            with requests.get(f"{_base()}/api/2/export", params={"start": start, "end": end},
                               auth=(API_KEY, SECRET_KEY), timeout=(30, 240), stream=True) as r:
                 status = r.status_code
                 if r.ok:
@@ -288,18 +282,39 @@ def _export_day(day: _date, cache_dir) -> list[dict]:
         except requests.RequestException:
             if attempt == 1:
                 raise
-    if status == 404:  # 그날 데이터 없음
-        events = []
-    else:
-        events = []
-        with zipfile.ZipFile(io.BytesIO(content)) as z:
-            for name in z.namelist():
-                if name.endswith(".gz"):
-                    for line in gzip.decompress(z.read(name)).decode("utf-8").splitlines():
-                        if line.strip():
-                            events.append(json.loads(line))
+    if status == 404:
+        return []
+    events = []
+    with zipfile.ZipFile(io.BytesIO(content)) as z:
+        for name in z.namelist():
+            if name.endswith(".gz"):
+                for line in gzip.decompress(z.read(name)).decode("utf-8").splitlines():
+                    if line.strip():
+                        events.append(json.loads(line))
     keep = ("event_type", "event_time", "user_id", "amplitude_id", "user_properties", "event_properties")
-    slim = [{k: e.get(k) for k in keep} for e in events]
+    return [{k: e.get(k) for k in keep} for e in events]
+
+
+def _export_day(day: _date, cache_dir) -> list[dict]:
+    """하루치(UTC) 원본 이벤트. 이틀 이상 지난 날은 data/amp_export/에 캐시.
+    최근 이틀은 6시간씩 나눠 받아 시간 초과를 피하고, 일부 조각이 실패해도 받은 만큼 돌려준다."""
+    cache = cache_dir / f"{day:%Y%m%d}.jsonl.gz"
+    fresh = (_dt.now(_tz.utc).date() - day).days < 2
+    if cache.exists() and not fresh:
+        with gzip.open(cache, "rt", encoding="utf-8") as f:
+            return [json.loads(l) for l in f if l.strip()]
+    if fresh:
+        slim, failed = [], 0
+        for h0, h1 in ((0, 5), (6, 11), (12, 17), (18, 23)):
+            try:
+                slim += _export_range(f"{day:%Y%m%d}T{h0:02d}", f"{day:%Y%m%d}T{h1:02d}")
+            except (AmplitudeError, requests.RequestException, zipfile.BadZipFile) as e:
+                failed += 1
+                print(f"  ⚠️ {day} {h0:02d}~{h1:02d}시(UTC) 받기 실패 — 건너뜀 ({str(e)[:80]})")
+        if failed == 4:
+            raise AmplitudeError("4개 조각 모두 실패")
+        return slim  # 최근 날짜는 계속 바뀌므로 캐시하지 않음
+    slim = _export_range(f"{day:%Y%m%d}T00", f"{day:%Y%m%d}T23")
     cache_dir.mkdir(parents=True, exist_ok=True)
     with gzip.open(cache, "wt", encoding="utf-8") as f:
         for e in slim:
@@ -328,20 +343,29 @@ def accounts(days: int = 30) -> dict | None:
     cache_dir = config.DATA_DIR / "amp_export"
     today_utc = _dt.now(_tz.utc).date()
     import time as _time
+    from concurrent.futures import ThreadPoolExecutor
     budget = float(os.getenv("AMPLITUDE_EXPORT_BUDGET_SEC") or "720")  # 내려받기에 쓸 최대 시간
     started = _time.monotonic()
-    events, missing = [], []
-    for i in range(days + 1):  # 최근 날짜부터 — 일부만 받아도 오늘·어제 방문은 먼저 보이게
-        day = today_utc - _td(days=i)
-        cached = (cache_dir / f"{day:%Y%m%d}.jsonl.gz").exists() and i >= 2
+    days_list = [today_utc - _td(days=i) for i in range(days + 1)]  # 최근 날짜부터
+
+    def fetch_one(day):
+        cached = (cache_dir / f"{day:%Y%m%d}.jsonl.gz").exists() and (today_utc - day).days >= 2
         if not cached and _time.monotonic() - started > budget:
-            missing.append(day)
-            continue
+            return day, None, "시간 한도"
         try:
-            events += _export_day(day, cache_dir)
+            return day, _export_day(day, cache_dir), None
         except (AmplitudeError, requests.RequestException, zipfile.BadZipFile, ValueError) as e:
-            missing.append(day)
-            print(f"  ⚠️ {day} 원본 이벤트 받기 실패 — 그날만 건너뜀 ({str(e)[:120]})")
+            return day, None, str(e)[:120]
+
+    events, missing = [], []
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        for day, evs, err in ex.map(fetch_one, days_list):
+            if evs is None:
+                missing.append(day)
+                if err != "시간 한도":
+                    print(f"  ⚠️ {day} 원본 이벤트 받기 실패 — 그날만 건너뜀 ({err})")
+            else:
+                events += evs
     if missing:
         print(f"   못 받은 날 {len(missing)}일 — 다음 실행 때 다시 시도합니다")
     if not events and missing:
