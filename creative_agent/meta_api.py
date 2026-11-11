@@ -139,28 +139,64 @@ def _lookup_ads(ad_ids: list[str]) -> dict:
         return out
 
 
+ALL_AD_STATUSES = ["ACTIVE", "PAUSED", "CAMPAIGN_PAUSED", "ADSET_PAUSED", "ARCHIVED", "DELETED",
+                   "IN_PROCESS", "WITH_ISSUES", "PENDING_REVIEW", "DISAPPROVED", "PREAPPROVED"]
+
+
+def _list_account_ads(wanted: set[str]) -> dict:
+    """광고계정의 광고 목록에서 소재 정보를 가져온다(PC 첫 실행에서 동작이 확인된 방식).
+    종료·보관된 광고까지 포함해 보고, 그 필터가 거절되면 기본 목록(진행·일시중지)으로 다시 시도."""
+    base = {"fields": "id," + CREATIVE_FIELDS, "thumbnail_width": 600, "thumbnail_height": 600, "limit": 200}
+    attempts = [
+        {**base, "filtering": json.dumps([{"field": "ad.effective_status", "operator": "IN", "value": ALL_AD_STATUSES}])},
+        base,
+    ]
+    for params in attempts:
+        found = {}
+        try:
+            for ad in _paginate(f"{config.META_AD_ACCOUNT_ID}/ads", params):
+                if ad["id"] in wanted:
+                    found[ad["id"]] = ad
+            return found
+        except MetaAPIError as e:
+            print(f"  ⚠️ 광고 목록 조회 실패({e})" + (" — 필터 없이 다시 시도" if params is not base else ""))
+    return {}
+
+
 def fetch_creatives(con) -> int:
-    """이미지가 아직 없는 광고들의 소재 이미지를 광고 ID로 직접 조회해 내려받는다(종료·보관된 광고 포함)."""
+    """이미지가 아직 없는 광고들의 소재 이미지를 내려받는다.
+    1) 광고계정 광고 목록에서 찾고  2) 거기 없는 광고만 광고 ID로 개별 조회."""
     config.IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     pending = [r["ad_id"] for r in con.execute("SELECT ad_id FROM ads WHERE image_hash IS NULL")]
+    if not pending:
+        return 0
+    ads = _list_account_ads(set(pending))
+    print(f"   광고 목록에서 {len(ads)}/{len(pending)}개 찾음")
+    rest = [a for a in pending if a not in ads]
+    for i in range(0, len(rest), 50):
+        ads.update(_lookup_ads(rest[i:i + 50]))
+
     n = 0
-    for i in range(0, len(pending), 50):
-        for ad_id, ad in _lookup_ads(pending[i:i + 50]).items():
-            creative = ad.get("creative") or {}
-            img_url = _creative_image_url(creative) or _big_thumbnail(creative)
-            if not img_url:
-                continue
-            try:
-                img = requests.get(img_url, timeout=60)
-                img.raise_for_status()
-            except requests.RequestException as e:
-                print(f"  ⚠️ 이미지 다운로드 실패 {ad_id}: {e}")
-                continue
-            h = hashlib.sha1(img.content).hexdigest()
-            path = config.IMAGE_DIR / f"{h}.jpg"
-            path.write_bytes(img.content)
-            con.execute("UPDATE ads SET image_url=?, image_hash=?, image_path=? WHERE ad_id=?",
-                        (img_url, h, str(path), ad_id))
-            n += 1
+    for ad_id, ad in ads.items():
+        creative = ad.get("creative") or {}
+        img_url = _creative_image_url(creative) or creative.get("thumbnail_url") or _big_thumbnail(creative)
+        if not img_url:
+            print(f"  ⚠️ 광고 {ad_id}: 소재 이미지 주소 없음")
+            continue
+        try:
+            img = requests.get(img_url, timeout=60)
+            img.raise_for_status()
+        except requests.RequestException as e:
+            print(f"  ⚠️ 이미지 다운로드 실패 {ad_id}: {e}")
+            continue
+        h = hashlib.sha1(img.content).hexdigest()
+        path = config.IMAGE_DIR / f"{h}.jpg"
+        path.write_bytes(img.content)
+        con.execute("UPDATE ads SET image_url=?, image_hash=?, image_path=? WHERE ad_id=?",
+                    (img_url, h, str(path), ad_id))
+        n += 1
     con.commit()
+    missing = len(pending) - n
+    if missing:
+        print(f"   이미지를 못 구한 광고 {missing}개 — 다음 실행 때 다시 시도합니다")
     return n
