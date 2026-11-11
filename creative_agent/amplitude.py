@@ -3,7 +3,8 @@
 Dashboard REST API의 Event Segmentation(고유 사용자 수, 첫 유입 UTM 사용자 속성으로 그룹)을 쓴다.
 - 광고 소재와 잇기: initial_utm_content (메타 URL 매개변수의 utm_content = 광고 ID 또는 광고 이름)
 - 유입 채널:       initial_utm_source
-주의: '활성화'는 기간 안에 활성화 이벤트를 한 고유 사용자 수다(그 기간에 가입한 사람만 센 코호트가 아님).
+활성화 = 무료체험 시작(trial_started) '후에' 브랜드 선택(brand_filter_changed)까지 한 사용자.
+  Funnel API(순서 있음)로, 기간 안에 무료체험을 시작한 사람 중 전환 기간(기본 30일) 안에 브랜드를 선택한 사람을 센다.
 """
 import json
 import os
@@ -16,8 +17,10 @@ REGION = (os.getenv("AMPLITUDE_REGION") or "us").lower()
 EVENTS = {
     "signups": os.getenv("AMPLITUDE_SIGNUP_EVENT") or "sign_up",
     "trials": os.getenv("AMPLITUDE_TRIAL_EVENT") or "trial_started",
-    "activated": os.getenv("AMPLITUDE_ACTIVATION_EVENT") or "excel_download",
+    "activated": os.getenv("AMPLITUDE_ACTIVATION_EVENT") or "brand_filter_changed",
 }
+LABELS = {"signups": "가입", "trials": "무료체험 신청", "activated": "체험 후 브랜드 선택"}
+FUNNEL_WINDOW_DAYS = int(os.getenv("AMPLITUDE_ACTIVATION_WINDOW_DAYS") or "30")
 AD_PROPERTY = os.getenv("AMPLITUDE_AD_PROPERTY") or "gp:initial_utm_content"
 SOURCE_PROPERTY = os.getenv("AMPLITUDE_SOURCE_PROPERTY") or "gp:initial_utm_source"
 NONE_LABELS = {"", "(none)", "none", "null", "(not set)", "EMPTY"}
@@ -65,19 +68,61 @@ def segmentation(event: str, since: str, until: str, group_by: str | None = None
     return out
 
 
+def funnel(events: list[str], since: str, until: str, group_by: str | None = None) -> dict[str, float]:
+    """순서 있는 퍼널에서 마지막 단계까지 간 고유 사용자 수. {그룹값: n} / 그룹 없으면 {'(all)': n}."""
+    params = [("e", json.dumps({"event_type": ev})) for ev in events]
+    params += [("start", since.replace("-", "")), ("end", until.replace("-", "")),
+               ("mode", "ordered"), ("n", "active"), ("cs", FUNNEL_WINDOW_DAYS * 86400)]
+    if group_by:
+        params += [("g", group_by), ("limit", 1000)]
+    r = requests.get(f"{_base()}/api/2/funnels", params=params, auth=(API_KEY, SECRET_KEY), timeout=120)
+    if not r.ok:
+        raise AmplitudeError(f"funnel {r.status_code}: {r.text[:200]}")
+    data = r.json().get("data", [])
+    if isinstance(data, dict):
+        data = [data]
+    out: dict[str, float] = {}
+    grouped_seen = False
+    for d in data:
+        raw = d.get("cumulativeRaw") or []
+        if not raw:
+            continue
+        label = d.get("groupValue", d.get("group"))
+        if isinstance(label, list):
+            label = label[-1] if label else None
+        if group_by:
+            if label is None:  # 그룹 응답에 섞인 전체 합계 행
+                continue
+            grouped_seen = True
+            key = str(label)
+        else:
+            key = "(all)"
+        out[key] = out.get(key, 0) + raw[-1]
+    if group_by and data and not grouped_seen:
+        print(f"  ⚠️ Amplitude 퍼널 응답에서 그룹({group_by})을 찾지 못했습니다 — 응답 키: {list(data[0])[:12]}")
+    return out
+
+
 def fetch(since: str, until: str) -> dict | None:
     """대시보드용 묶음. 실패하면 경고만 남기고 None."""
     if not enabled():
         return None
     try:
         totals, by_ad, by_source = {}, {}, {}
+        act_steps = [EVENTS["trials"], EVENTS["activated"]]
         for key, event in EVENTS.items():
-            totals[key] = sum(segmentation(event, since, until).values())
+            if key == "activated":  # 무료체험 → 브랜드 선택 (순서 있는 퍼널)
+                q = lambda g=None: funnel(act_steps, since, until, g)
+            else:
+                q = lambda g=None, ev=event: segmentation(ev, since, until, g)
+            totals[key] = sum(q().values())
             for prop, bucket in ((AD_PROPERTY, by_ad), (SOURCE_PROPERTY, by_source)):
-                for value, n in segmentation(event, since, until, prop).items():
+                for value, n in q(prop).items():
                     v = "(none)" if value in NONE_LABELS else value
                     bucket.setdefault(v, {k: 0 for k in EVENTS})[key] += n
-        return {"events": EVENTS, "totals": totals, "by_ad": by_ad, "by_source": by_source,
+        return {"events": EVENTS, "labels": LABELS, "activation_steps": act_steps,
+                "activation_window_days": FUNNEL_WINDOW_DAYS,
+                "totals": totals, "by_ad": by_ad, "by_source": by_source,
                 "ad_property": AD_PROPERTY, "source_property": SOURCE_PROPERTY}
     except (AmplitudeError, requests.RequestException, ValueError) as e:
         print(f"  ⚠️ Amplitude 조회 실패 — 가입/활성화 없이 진행합니다 ({e})")
@@ -119,7 +164,7 @@ def attach(report: dict, amp: dict | None) -> dict:
                 t[k] += counts.get(k, 0) * ((t["spend"] or 1) / spend)
     for a in report["ads"]:
         a["cps"] = a["spend"] / a["signups"] if a["signups"] else 0  # 가입당 비용
-        a["act_rate"] = a["activated"] / a["signups"] if a["signups"] else 0
+        a["act_rate"] = a["activated"] / a["trials"] if a["trials"] else 0  # 체험 → 브랜드 선택 전환율
     for groups in report["dimensions"].values():
         for g in groups:
             members = [a for a in report["ads"] if a["labels"] and
@@ -127,7 +172,7 @@ def attach(report: dict, amp: dict | None) -> dict:
             for k in EVENTS:
                 g[k] = sum(a[k] for a in members)
             g["cps"] = g["spend"] / g["signups"] if g["signups"] else 0
-            g["act_rate"] = g["activated"] / g["signups"] if g["signups"] else 0
+            g["act_rate"] = g["activated"] / g["trials"] if g["trials"] else 0
     for tot_key, pool in (("labeled_totals", [a for a in report["ads"] if a["labels"]]),
                           ("analyzed_totals", report["ads"])):
         t = report.get(tot_key)

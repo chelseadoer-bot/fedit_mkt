@@ -10,7 +10,7 @@ SYSTEM = """당신은 퍼포먼스 마케팅 팀의 시니어 크리에이티브
 메타 광고 소재의 라벨 축별 성과와 소재별 성과/진단 데이터를 받아, 다음 주 소재 제작·예산 운영에 바로 쓸 수 있는 코멘트를 씁니다.
 
 이 계정의 핵심 목표는 데이터의 '핵심전환'(예: 랜딩페이지 조회)입니다. 앰플리튜드 데이터(가입·체험·활성화)가 있으면 그것이 최우선입니다. 판단 순서:
-0) (앰플리튜드가 있으면) 소재별 가입 수·가입당 비용·활성화 — 랜딩은 많은데 가입이 없는 소재를 반드시 짚을 것
+0) (앰플리튜드가 있으면) 최종 기준은 '활성화 = 무료체험 후 브랜드 선택'. 소재별 무료체험 신청 수와 활성화 수, 가입당 비용을 보고, 랜딩은 많은데 가입·체험이 없는 소재를 반드시 짚을 것
 1) 핵심전환 1건당 비용(CPA)과 전환 수
 2) 도달률(핵심전환 ÷ 링크클릭) — 랜딩페이지 조회라면, 클릭 후 랜딩이 실제로 열린 비율. 낮으면 랜딩 로딩 속도·광고와 랜딩의 메시지 불일치·실수 클릭을 의심
 3) CTR(후킹)과 CPC
@@ -52,7 +52,7 @@ def _compact(report: dict) -> dict:
             out.update({conv: int(x["conversions"]), f"{conv}당비용": round(x["cpa"]), "도달률%": pct(x["cvr"])})
         if amp and "signups" in x:
             out.update({"가입": round(x["signups"], 1), "가입당비용": round(x["cps"]) if x.get("cps") else None,
-                        "체험시작": round(x["trials"], 1), "활성화": round(x["activated"], 1)})
+                        "무료체험신청": round(x["trials"], 1), "체험후브랜드선택(활성화)": round(x["activated"], 1)})
         return out
 
     dims = {d: [{"값": g["value"], "소재수": g["count"], **m(g)} for g in gs]
@@ -67,7 +67,7 @@ def _compact(report: dict) -> dict:
             **({"앰플리튜드": {
                 "이벤트": amp["events"], "기간전체": amp["totals"], "메타유입": amp["meta"],
                 "유입소스별": amp["sources"][:10], "광고와연결안된_utm_content": amp["unmatched"],
-                "주의": "활성화=기간 내 활성화 이벤트를 한 고유 사용자(코호트 아님). 가입은 첫 유입 UTM 기준."}} if amp else {})}
+                "주의": "활성화=무료체험(trial_started) 후 브랜드 선택(brand_filter_changed)까지 한 사용자(순서 퍼널). 최종 성과 기준은 활성화, 무료체험 신청 수도 함께 볼 것. 가입은 첫 유입 UTM 기준."}} if amp else {})}
 
 
 def _comp(c: dict | None) -> dict:

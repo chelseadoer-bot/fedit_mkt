@@ -98,6 +98,8 @@ def fake_amplitude(rep: dict) -> dict:
     by_source = {"meta": dict(meta), "(none)": {"signups": 31, "trials": 20, "activated": 11},
                  "naver": {"signups": 12, "trials": 8, "activated": 5}, "lead_mail": {"signups": 2, "trials": 1, "activated": 0}, "linkedin": {"signups": 4, "trials": 2, "activated": 1}}
     totals = {k: sum(v[k] for v in by_source.values()) for k in meta}
-    return {"events": {"signups": "sign_up", "trials": "trial_started", "activated": "excel_download"},
+    return {"events": {"signups": "sign_up", "trials": "trial_started", "activated": "brand_filter_changed"},
+            "labels": {"signups": "가입", "trials": "무료체험 신청", "activated": "체험 후 브랜드 선택"},
+            "activation_steps": ["trial_started", "brand_filter_changed"], "activation_window_days": 30,
             "totals": totals, "by_ad": by_ad, "by_source": by_source,
             "ad_property": "gp:initial_utm_content", "source_property": "gp:initial_utm_source"}
