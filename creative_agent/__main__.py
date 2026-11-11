@@ -152,7 +152,8 @@ def main() -> None:
         print("⑥ 가입 계정별 활동 (Amplitude Export)")
         rep["accounts"] = amplitude.accounts(30)
         if rep["accounts"]:
-            print(f"   계정 {len(rep['accounts']['rows'])}개 · 오늘 방문 {rep['accounts']['today_count']}명")
+            print(f"   계정 {len(rep['accounts']['rows'])}개 · 오늘 방문 {rep['accounts']['today_count']}명"
+                  f" · 제외 {len(rep['accounts']['excluded'])}개")
     elif a.cmd == "demo":
         from . import demo
         rep["accounts"] = demo.fake_accounts()

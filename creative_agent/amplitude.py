@@ -257,7 +257,32 @@ from collections import Counter, defaultdict
 from datetime import date as _date, datetime as _dt, timedelta as _td, timezone as _tz
 
 KST = _tz(_td(hours=9))
-SHOW_FULL_ACCOUNT = (os.getenv("SHOW_FULL_ACCOUNT") or "").lower() in ("1", "true", "yes")
+SHOW_FULL_ACCOUNT = (os.getenv("SHOW_FULL_ACCOUNT") or "1").lower() not in ("0", "false", "no")  # 기본: 전체 이메일 표시
+
+
+def _exclude_rules() -> list[str]:
+    from . import config
+    rules = []
+    f = config.ROOT / "exclude_accounts.txt"
+    if f.exists():
+        rules += [l.strip() for l in f.read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")]
+    rules += [x.strip() for x in (os.getenv("EXCLUDE_ACCOUNTS") or "").split(",") if x.strip()]
+    return [r.lower() for r in rules]
+
+
+def _excluded(uid: str, rules: list[str]) -> bool:
+    u = uid.lower()
+    for r in rules:
+        if "***" in r:  # 가려진 형태: 앞글자***@도메인
+            pre, post = r.split("***", 1)
+            if u.startswith(pre) and u.endswith(post):
+                return True
+        elif r.startswith("@"):
+            if u.endswith(r):
+                return True
+        elif u == r:
+            return True
+    return False
 # 요약에 쓰는 행동 (이벤트 → 한글 이름). 자동 수집 이벤트는 '페이지 조회'만 셈
 ACTION_LABELS = {
     "product_detail_viewed": "상품 상세", "products_loaded": "상품 목록 조회", "folder_save": "폴더 저장",
@@ -375,9 +400,13 @@ def accounts(days: int = 30) -> dict | None:
     today, yesterday = now.date(), now.date() - _td(days=1)
     by_user: dict[str, list] = defaultdict(list)
     props: dict[str, dict] = {}
+    rules, excluded = _exclude_rules(), set()
     for e in events:
         uid = e.get("user_id")
         if not uid:
+            continue
+        if _excluded(str(uid), rules):
+            excluded.add(str(uid))
             continue
         by_user[str(uid)].append(e)
         if e.get("user_properties"):
@@ -437,4 +466,5 @@ def accounts(days: int = 30) -> dict | None:
     rows.sort(key=lambda r: r["last_seen"], reverse=True)
     return {"generated_kst": f"{now:%Y-%m-%d %H:%M}", "days": days, "masked": not SHOW_FULL_ACCOUNT,
             "missing_days": len(missing),
+            "excluded": sorted(_mask(u) for u in excluded),
             "today_count": sum(r["today"] for r in rows), "rows": rows}

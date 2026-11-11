@@ -9,6 +9,7 @@ on:
       - "creative_agent/**"
       - "competitors/**"
       - "requirements.txt"
+      - "exclude_accounts.txt"
       - ".github/workflows/**"
   workflow_dispatch:         # Actions 탭에서 'Run workflow' 버튼으로 바로 실행
     inputs:
@@ -56,6 +57,7 @@ jobs:
           AMPLITUDE_PAID_EVENT: ${{ vars.AMPLITUDE_PAID_EVENT }}
           AMPLITUDE_PAID_WINDOW_DAYS: ${{ vars.AMPLITUDE_PAID_WINDOW_DAYS }}
           SHOW_FULL_ACCOUNT: ${{ vars.SHOW_FULL_ACCOUNT }}
+          EXCLUDE_ACCOUNTS: ${{ vars.EXCLUDE_ACCOUNTS }}
           META_CONVERSION_ACTION: ${{ vars.META_CONVERSION_ACTION }}
           MIN_SPEND: ${{ vars.MIN_SPEND }}
           PYTHONUNBUFFERED: "1"
