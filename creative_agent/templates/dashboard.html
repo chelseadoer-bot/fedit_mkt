@@ -398,7 +398,7 @@ if (AMP) {
     $('#acc-desc').textContent = `최근 ${AC.days}일 동안 활동한 가입 계정 ${AC.rows.length}개 · ${AC.generated_kst} 기준 (앰플리튜드 데이터는 1~2시간 늦게 반영)`
       + (AC.masked ? ' · 계정 정보는 일부 가려서 표시' : '') + ' · 이 표는 위의 기간 선택과 상관없이 항상 최신';
     if (AC.missing_days) $('#acc-desc').textContent += ` · 아직 못 받은 날 ${AC.missing_days}일(다음 실행 때 채워짐)`;
-    $('#acc-legend').innerHTML = `<span class="dot"></span>초록 점 = 오늘 방문한 계정 · 최근 7일 방문일 = 지난 7일 중 들어온 날 수(같은 날 여러 번 와도 1일) · 보는 브랜드: <span class="tag v">파란색</span> 실제로 본 브랜드(횟수) <span class="tag">회색</span> 모니터링 설정 브랜드`;
+    $('#acc-legend').innerHTML = `<span class="dot"></span>초록 점 = 오늘 방문한 계정 · 최근 7일 방문일 = 지난 7일 중 들어온 날 수(같은 날 여러 번 와도 1일) · 보는 브랜드: <span class="tag v">파란색</span> 실제로 본 브랜드 <span class="tag">회색</span> 모니터링 설정 브랜드`;
     let accF = '전체', accBrand = '';
     const F = {'전체': () => true, '오늘 방문': r => r.today, '어제 방문': r => r.yesterday,
                '체험 중': r => r.status.startsWith('체험 중'), '이탈 위험': r => r.status === '이탈 위험',
@@ -415,7 +415,7 @@ if (AMP) {
         : '';
       $('#acc-chips').innerHTML = Object.keys(F).map(k => `<button class="chip ${k===accF?'on':''}" data-f="${k}">${k}<b>${base.filter(F[k]).length}</b></button>`).join('');
       const list = base.filter(F[accF]);
-      $('#acc-table').innerHTML = `<thead><tr><th class="l">계정</th><th class="l">상태</th><th class="l">마지막 방문</th><th title="지난 7일 중 들어온 날 수 (같은 날 여러 번 와도 1일)">최근 7일 방문일</th><th class="l">유입</th><th class="l" title="파란색 = 실제로 많이 본 브랜드(횟수), 회색 = 모니터링 설정한 브랜드">보는 브랜드</th><th class="l">한 줄 요약</th></tr></thead><tbody>
+      $('#acc-table').innerHTML = `<thead><tr><th class="l">계정</th><th class="l">상태</th><th class="l">마지막 방문</th><th title="지난 7일 중 들어온 날 수 (같은 날 여러 번 와도 1일)">최근 7일 방문일</th><th class="l">유입</th><th class="l" title="파란색 = 실제로 많이 본 브랜드, 회색 = 모니터링 설정한 브랜드">보는 브랜드</th><th class="l">한 줄 요약</th></tr></thead><tbody>
         ${list.map(r => `<tr><td class="l">${r.today ? '<span class="dot" title="오늘 방문"></span>' : ''}${esc(r.account)}${r.plan ? `<div class="subname">${esc(r.plan)}${r.account_type ? ' · ' + esc(r.account_type) : ''}</div>` : ''}</td>
           <td class="l"><span class="badge ${badgeCls(r.status)}">${esc(r.status)}</span></td>
           <td class="l">${esc(r.last_seen)}${r.today ? ' <span class="tag">오늘</span>' : r.yesterday ? ' <span class="tag">어제</span>' : ''}</td>
@@ -429,7 +429,7 @@ if (AMP) {
       const vset = new Set(viewed.map(v => v.brand));
       const mon = (r.monitored_brands || []).filter(b => !vset.has(b));
       const more = mon.length > 6 ? mon.length - 6 : 0;
-      const html = viewed.map(v => `<span class="tag v">${esc(v.brand)} ${v.n}</span>`).join('')
+      const html = viewed.map(v => `<span class="tag v">${esc(v.brand)}</span>`).join('')
         + mon.slice(0, 6).map(b => `<span class="tag">${esc(b)}</span>`).join('') + (more ? `<span class="tag">외 ${more}개</span>` : '');
       return html || '<span class="desc">—</span>';
     };
