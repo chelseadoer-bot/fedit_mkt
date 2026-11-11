@@ -53,6 +53,22 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 -apple-system
 .fstep .n{font-weight:600}
 .fstep .r{text-align:right;color:var(--sub);font-size:11.5px}
 @media (max-width:600px){.fstep{grid-template-columns:80px 1fr;}.fstep .r{grid-column:2;text-align:left}}
+.brands{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:14px}
+.brand{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.brand .bn{font-weight:600;font-size:13.5px}
+.brand .bl{display:flex;flex-wrap:wrap;gap:6px 10px;margin-top:6px;font-size:12px}
+.brand a{color:var(--info);text-decoration:none}
+.brand a:hover{text-decoration:underline}
+.brand .bc{font-size:11.5px;color:var(--faint);margin-top:6px}
+.mbar{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.mbar span{display:inline-block;height:8px;border-radius:4px;background:var(--accent);opacity:.8}
+.mbar.us span{background:var(--info)}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:4px}
+.ctile{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.ctile img{width:100%;aspect-ratio:4/5;object-fit:cover;object-position:top;display:block;background:var(--chip)}
+.ctile .meta{padding:10px 12px;font-size:12px}
+.ctile .hl{font-weight:600;font-size:12.5px;margin:2px 0 6px}
+.ctile .st{color:var(--sub);font-size:11.5px;margin-top:6px}
 .warn{font-size:12px;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 12px;margin-top:12px}
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
 h1{font-size:20px;margin:0 0 2px}
@@ -154,6 +170,7 @@ tbody tr.row:hover{background:var(--line2)}
   <a href="#sec-overview" data-sec="sec-overview">개요 <small>퍼널</small></a>
   <a href="#sec-creative" data-sec="sec-creative">광고 소재 <small>메타</small></a>
   <a href="#sec-channels" data-sec="sec-channels" id="nav-channels" hidden>유입 채널 <small>앰플리튜드</small></a>
+  <a href="#sec-comp" data-sec="sec-comp" id="nav-comp" hidden>경쟁사 광고 <small>참고</small></a>
   <div class="foot-note">매일 아침 자동 갱신<br><span id="gen-side"></span></div>
 </nav>
 <main class="wrap">
@@ -218,6 +235,26 @@ tbody tr.row:hover{background:var(--line2)}
       <h2>첫 유입 소스별 가입·활성화</h2>
       <div class="desc" id="ch-desc"></div>
       <div class="tbl-wrap" style="margin-top:14px"><table id="ch-table"></table></div>
+    </section>
+  </div>
+
+  <div id="comp-wrap" hidden>
+    <h2 class="sec-title" id="sec-comp">경쟁사 광고</h2>
+    <section class="card">
+      <h2>비교 대상</h2>
+      <div class="desc">메타 광고 라이브러리(한국·진행 중 광고) 바로가기 · 눈에 띄는 광고는 캡처해서 저장소 <b>competitors/회사</b> 폴더에 올리면 매일 자동 분석됩니다</div>
+      <div class="brands" id="comp-brands"></div>
+    </section>
+    <section class="card">
+      <h2>유형 비교 — 경쟁사 vs 우리</h2>
+      <div class="desc">경쟁사는 저장한 광고 수, 우리는 이 기간 라벨된 소재 수 기준 비율 · 경쟁사 성과는 알 수 없으니 참고용</div>
+      <div class="chips" id="cmp-chips"></div>
+      <div class="tbl-wrap"><table id="cmp-table" style="min-width:560px"></table></div>
+    </section>
+    <section class="card">
+      <h2>저장한 경쟁사 광고</h2>
+      <div class="chips" id="cga-chips"></div>
+      <div class="cgrid" id="comp-grid"></div>
     </section>
   </div>
 </main>
@@ -298,6 +335,54 @@ if (AMP) {
       <td>${r.signups ? pct(r.activated / r.signups, 0) : '—'}</td></tr>`).join('') || `<tr><td colspan="7" class="empty">데이터가 없습니다</td></tr>`}
     <tr class="total"><td class="l">합계</td><td>${int(T.signups)}</td><td>100%</td><td>${int(T.trials)}</td>
       <td>${T.signups ? pct(T.trials / T.signups, 0) : '—'}</td><td>${int(T.activated)}</td><td>${T.signups ? pct(T.activated / T.signups, 0) : '—'}</td></tr></tbody>`;
+}
+
+// ── 경쟁사 광고 ──
+{
+  const C = D.competitors && D.competitors.brands && D.competitors.brands.length ? D.competitors : null;
+  document.getElementById('nav-comp').hidden = !C;
+  document.getElementById('comp-wrap').hidden = !C;
+  if (C) {
+    const names = Object.fromEntries(C.brands.map(b => [b.slug, b.name]));
+    $('#comp-brands').innerHTML = C.brands.map(b => `<div class="brand"><div class="bn">${esc(b.name)}</div>
+      <div class="bl"><a href="${esc(b.adlib_url)}" target="_blank" rel="noopener">광고 라이브러리 ↗</a>
+      ${b.ig_url ? `<a href="${esc(b.ig_url)}" target="_blank" rel="noopener">@${esc(b.instagram)} ↗</a>` : ''}</div>
+      <div class="bc">저장한 광고 ${b.count}개</div></div>`).join('');
+
+    const cdims = Object.keys(C.dimensions);
+    let cmpDim = cdims[0];
+    const ours = D.ads.filter(a => a.labels);
+    const theirs = C.ads.filter(a => a.labels);
+    const bar = (n, tot, us) => `<div class="mbar ${us?'us':''}">${tot ? `<span style="width:${Math.round(n / tot * 80)}px"></span>${pct(n / tot, 0)}` : '—'} <small style="color:var(--faint)">(${n})</small></div>`;
+    const renderCmp = () => {
+      $('#cmp-chips').innerHTML = cdims.map(d => `<button class="chip ${d===cmpDim?'on':''}" data-c="${esc(d)}">${esc(d)}</button>`).join('');
+      const onlyComp = !(cmpDim in D.dimensions);
+      const rows = C.dimensions[cmpDim].map(v => [v, theirs.filter(a => a.labels[cmpDim] === v).length,
+                                                    onlyComp ? null : ours.filter(a => a.labels[cmpDim] === v).length])
+                                     .filter(r => r[1] || r[2]);
+      $('#cmp-table').innerHTML = `<thead><tr><th class="l">${esc(cmpDim)}</th><th>경쟁사 (${theirs.length}개)</th><th>우리 (${ours.length}개)</th></tr></thead><tbody>
+        ${rows.map(([v, c, o]) => `<tr><td class="l">${esc(v)}</td><td>${bar(c, theirs.length)}</td><td>${o === null ? '<span class="desc">우리 소재엔 없는 기준</span>' : bar(o, ours.length, 1)}</td></tr>`).join('')
+          || `<tr><td colspan="3" class="empty">라벨된 경쟁사 광고가 아직 없습니다</td></tr>`}</tbody>`;
+    };
+    $('#cmp-chips').onclick = e => { const b = e.target.closest('[data-c]'); if (b) { cmpDim = b.dataset.c; renderCmp(); } };
+    renderCmp();
+
+    let cBrand = '전체';
+    const renderGallery = () => {
+      const withAds = C.brands.filter(b => b.count);
+      $('#cga-chips').innerHTML = ['전체', ...withAds.map(b => b.slug)].map(k => `<button class="chip ${k===cBrand?'on':''}" data-b="${esc(k)}">${esc(k==='전체' ? '전체' : names[k])}<b>${k==='전체' ? C.ads.length : withAds.find(b => b.slug===k).count}</b></button>`).join('');
+      const list = C.ads.filter(a => cBrand === '전체' || a.brand === cBrand);
+      $('#comp-grid').innerHTML = list.map(a => `<div class="ctile">${a.thumb && D.thumbs[a.thumb] ? `<img src="${D.thumbs[a.thumb]}" alt="" loading="lazy">` : ''}
+        <div class="meta"><div class="desc">${esc(names[a.brand] || a.brand)}${a.date ? ' · ' + esc(a.date) : ''}</div>
+        <div class="hl">${esc(a.headline || a.file)}</div>
+        ${a.labels ? `<div class="tags" style="flex-wrap:wrap">${Object.entries(a.labels).filter(([k]) => ['메시지 앵글','포맷','오퍼'].includes(k)).map(([k, v]) => `<span class="tag">${esc(v)}</span>`).join('')}</div>` : '<div class="desc">라벨링 대기 중 (다음 실행 때)</div>'}
+        ${a.cta ? `<div class="st">CTA: ${esc(a.cta)}</div>` : ''}${a.target ? `<div class="st">타깃: ${esc(a.target)}</div>` : ''}
+        ${a.description ? `<div class="st">${esc(a.description)}</div>` : ''}</div></div>`).join('')
+        || '<div class="empty">아직 저장한 광고가 없습니다 — competitors/회사 폴더에 스크린샷을 올려 주세요</div>';
+    };
+    $('#cga-chips').onclick = e => { const b = e.target.closest('[data-b]'); if (b) { cBrand = b.dataset.b; renderGallery(); } };
+    renderGallery();
+  }
 }
 
 // ── 좌측 메뉴: 보고 있는 섹션 강조 (기간을 바꿔 다시 그려도 한 번만 설정) ──
@@ -469,7 +554,8 @@ function start(B) {
   sel.value = cur;
   const show = k => {
     const v = views.find(x => keyOf(x) === k) || views[0];
-    boot({...v, thumbs: B.thumbs || v.thumbs || {}, generated_at: B.generated_at || v.generated_at});
+    boot({...v, thumbs: B.thumbs || v.thumbs || {}, generated_at: B.generated_at || v.generated_at,
+          competitors: B.competitors || null});
   };
   sel.onchange = () => { try { localStorage.setItem(KEYR, sel.value); } catch (e) {} show(sel.value); };
   show(cur);

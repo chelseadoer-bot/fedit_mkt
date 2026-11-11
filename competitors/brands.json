@@ -1,0 +1,8 @@
+[
+  {"slug": "chatgpt", "name": "ChatGPT (OpenAI)", "instagram": "openai", "keyword": "ChatGPT"},
+  {"slug": "dbpia", "name": "DBpia AI", "instagram": "dbpia_insta", "keyword": "DBpia"},
+  {"slug": "univai", "name": "UnivAI", "instagram": "univai_official", "keyword": "UnivAI"},
+  {"slug": "inpock", "name": "인포크", "instagram": "inpock_official", "keyword": "인포크"},
+  {"slug": "snipit", "name": "스니핏", "instagram": "snipit.official", "keyword": "스니핏"},
+  {"slug": "realry", "name": "리얼리", "instagram": "realry_official", "keyword": "리얼리"}
+]

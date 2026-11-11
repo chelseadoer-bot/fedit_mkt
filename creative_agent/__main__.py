@@ -97,6 +97,12 @@ def main() -> None:
         from . import labeler
         print("③ Claude 이미지 라벨링 (새 이미지만)")
         print(f"   {labeler.label_pending(con)}개 라벨링")
+        from . import competitors
+        try:
+            n = competitors.label_pending(con)
+            print(f"③-2 경쟁사 광고 라벨링 {n}개 (새 스크린샷만)")
+        except Exception as e:  # 경쟁사 패널 실패가 전체를 막지 않게
+            print(f"   ⚠️ 경쟁사 광고 라벨링 건너뜀: {e}")
 
     print("④ 집계/진단 (기간별)")
     from . import amplitude
@@ -120,11 +126,18 @@ def main() -> None:
         print(f"   {label}: 소재 {rep['total_count']}개, 라벨 {rep['labeled_count']}개{amp_txt}")
         views.append(rep)
     default = next((v for v in views if v["key"] == "30d"), views[-1])
+    from . import competitors as comp_mod
+    comp = comp_mod.build(con, fake=(a.cmd == "demo"))
+    if comp:
+        print(f"   경쟁사 {len(comp['brands'])}곳, 저장한 광고 {len(comp['ads'])}개")
     if use_ai and default["labeled_count"]:
         from . import insights
         print(f"⑤ AI 코멘트 생성 ({default['label']} 기준)")
-        default["ai_summary"] = insights.generate(default)
+        default["ai_summary"] = insights.generate(default, comp)
     rep = report.bundle(views, default["key"])
+    if comp:
+        rep["thumbs"].update(comp.pop("thumbs"))
+        rep["competitors"] = comp
     out = report.render(rep)
     print(f"✅ 대시보드: {out}")
     if a.site:
