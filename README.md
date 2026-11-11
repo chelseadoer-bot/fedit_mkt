@@ -77,6 +77,8 @@ PC를 켜 두지 않아도 GitHub 서버가 매일 아침(한국시간 5:47경) 
 3. **Actions** 탭 → `매일 소재 분석` → **Run workflow**로 첫 실행을 합니다.
    마지막 단계 로그의 `Production: https://...vercel.app` 주소가 공유할 주소입니다.
 
+- 루트의 `vercel.json`은 버셀이 이 저장소를 직접 빌드하지 않도록 막습니다. 배포는 Actions가 완성된 대시보드(`site/`)만 올립니다.
+  버셀에서 이 저장소를 Import해서 생긴 프로젝트는 필요 없으니 지워도 됩니다.
 - 대시보드 데이터는 AES-256으로 암호화되어 배포되므로, 주소가 알려져도 비밀번호 없이는 볼 수 없습니다.
 - 비밀번호를 바꾸려면 `DASHBOARD_PASSWORD` 시크릿만 바꾸고 다시 실행하면 됩니다.
 - 선택: **Variables** 탭에 `VERCEL_PROJECT`(버셀 프로젝트 이름, 기본 `creative-dashboard`),
