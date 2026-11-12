@@ -64,6 +64,9 @@ jobs:
           META_CONVERSION_ACTION: ${{ vars.META_CONVERSION_ACTION }}
           MIN_SPEND: ${{ vars.MIN_SPEND }}
           RECENT_USER_IDS: ${{ github.event.client_payload.user_id }}
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_USER_ID: ${{ vars.INSTAGRAM_USER_ID }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           PYTHONUNBUFFERED: "1"
         run: python -m creative_agent run --days "${{ inputs.days || '90' }}" --site site
 
@@ -82,6 +85,11 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT: ${{ vars.VERCEL_PROJECT || 'creative-dashboard' }}
+          DASHBOARD_PASSWORD: ${{ secrets.DASHBOARD_PASSWORD }}
+          CALENDAR_GH_TOKEN: ${{ secrets.CALENDAR_GH_TOKEN }}
         run: |
           npx --yes vercel@latest link --yes --project "$VERCEL_PROJECT" --token "$VERCEL_TOKEN" --cwd site
-          npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" --cwd site
+          # 캘린더 저장 API가 쓰는 값(비밀번호 확인·GitHub 저장)을 배포 실행 환경에 전달
+          npx --yes vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" --cwd site \
+            -e DASHBOARD_PASSWORD="$DASHBOARD_PASSWORD" -e CALENDAR_GH_TOKEN="$CALENDAR_GH_TOKEN" \
+            -e CALENDAR_REPO="${{ github.repository }}"

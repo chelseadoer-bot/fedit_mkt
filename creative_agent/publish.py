@@ -6,6 +6,7 @@
 import base64
 import json
 import os
+import pathlib
 from pathlib import Path
 
 ITERATIONS = 200_000
@@ -32,6 +33,10 @@ def write_site(report: dict, out_dir: Path, password: str) -> Path:
     html = report_mod.TEMPLATE.read_text(encoding="utf-8").replace(
         "__DATA__", json.dumps(envelope, ensure_ascii=False).replace("</", "<\\/"))
     (out_dir / "index.html").write_text(html, encoding="utf-8")
+    # 콘텐츠 캘린더 저장 API (버셀 서버리스 함수)
+    api_src = pathlib.Path(__file__).parent / "site_api" / "calendar.js"
+    (out_dir / "api").mkdir(exist_ok=True)
+    (out_dir / "api" / "calendar.js").write_text(api_src.read_text(encoding="utf-8"), encoding="utf-8")
     # 검색엔진 노출 방지
     (out_dir / "robots.txt").write_text("User-agent: *\nDisallow: /\n", encoding="utf-8")
     (out_dir / "vercel.json").write_text(json.dumps({

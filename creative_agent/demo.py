@@ -134,3 +134,40 @@ def fake_accounts() -> dict:
     return {"popular_brands": [{"brand": b, "accounts": n} for b, n in pop.most_common(15)],
             "generated_kst": "2026-11-11 13:00", "days": 30, "masked": False,
             "today_count": sum(r["today"] for r in rows), "rows": rows}
+
+
+def fake_calendar(default: dict) -> dict:
+    """데모용 콘텐츠 캘린더."""
+    from datetime import date as _d, timedelta as _t
+    rnd = random.Random(5)
+    u = _d.fromisoformat(default["period"]["until"])
+    items, perf, posts = [], {}, []
+    titles = {"instagram": ["MD 브이로그 릴스", "경쟁사 신상 TOP5 카드뉴스", "기능 소개 캐러셀", "고객 후기 릴스"],
+              "threads": ["바이어 공감 썰", "주간 트렌드 한 줄 요약", "제품 업데이트 공지"],
+              "ad": ["261020_competitor_monitoring_q_refc_shop_v1", "신규 질문형 소재 테스트", "리타겟팅 체험 유도"],
+              "other": ["블로그 SEO 글", "뉴스레터 발송"]}
+    for i in range(22):
+        ch = rnd.choice(["instagram", "instagram", "threads", "threads", "ad", "other"])
+        d = u + _t(days=rnd.randint(-20, 14))
+        st = "게시 완료" if d <= u else rnd.choice(["기획", "제작 중", "예약"])
+        it = {"id": f"demo{i}", "date": str(d), "channel": ch, "title": rnd.choice(titles[ch]), "status": st,
+              "link": "", "memo": "데모 항목"}
+        items.append(it)
+        if st == "게시 완료" and ch == "instagram":
+            perf[it["id"]] = {"kind": ch, "reach": rnd.randint(300, 5000), "likes": rnd.randint(10, 300),
+                              "saved": rnd.randint(0, 80), "shares": rnd.randint(0, 40), "comments": rnd.randint(0, 30)}
+        elif st == "게시 완료" and ch == "threads":
+            perf[it["id"]] = {"kind": ch, "views": rnd.randint(200, 8000), "likes": rnd.randint(5, 200),
+                              "replies": rnd.randint(0, 40), "reposts": rnd.randint(0, 20)}
+        elif st == "게시 완료" and ch == "ad":
+            perf[it["id"]] = {"kind": "ad", "spend": rnd.randint(20000, 300000), "conversions": rnd.randint(50, 900),
+                              "cpa": rnd.randint(200, 600), "signups": rnd.randint(0, 12), "trials": rnd.randint(0, 6)}
+    for j in range(5):
+        ch = rnd.choice(["instagram", "threads"])
+        posts.append({"channel": ch, "id": f"p{j}", "date": str(u - _t(days=rnd.randint(0, 25))),
+                      "permalink": "https://www.instagram.com/p/demo/" if ch == "instagram" else "https://www.threads.net/@demo/post/x",
+                      "text": "기획 없이 올린 게시물 (데모)", "type": "IMAGE", "thumb": None,
+                      "metrics": {"reach": rnd.randint(100, 2000), "likes": rnd.randint(1, 100)} if ch == "instagram"
+                      else {"views": rnd.randint(100, 3000), "likes": rnd.randint(1, 80)}})
+    return {"items": items, "perf": perf, "posts": posts,
+            "status": {"instagram": "ok", "threads": "ok"}, "period": default["period"]}

@@ -133,3 +133,15 @@ PC를 켜 두지 않아도 GitHub 서버가 매일 아침(한국시간 5:47경) 
   - 토큰: GitHub → Settings → Developer settings → Fine-grained tokens, 저장소 `fedit_mkt`만, 권한 **Contents: Read and write**
 - 보낼 이벤트: `sign_up`, `trial_started`
 - 본문: `{"event_type": "amplitude_event", "client_payload": {"user_id": "<이벤트의 user_id>", "event": "<event_type>"}}`
+
+## 콘텐츠 캘린더
+
+대시보드 '콘텐츠 캘린더' 탭에서 채널(공식 인스타·스레드·광고·기타)별 콘텐츠를 날짜에 기획하고, 자동 갱신 때 성과를 붙입니다.
+
+- 저장: 대시보드 → 버셀 서버리스 함수(`/api/calendar`) → 이 저장소의 `content/calendar.json` (GitHub API, 비밀번호 확인)
+  - GitHub 시크릿 `CALENDAR_GH_TOKEN`: fine-grained 토큰, 저장소 `fedit_mkt`만, **Contents: Read and write**
+- 성과 연결: 항목의 '링크'에 인스타·스레드 게시물 주소 또는 광고 이름(ID). 링크가 없으면 같은 날 같은 채널 게시물이 하나일 때 자동 연결
+  - 인스타그램: 메타 시스템 사용자에 페이지·인스타 계정을 할당하고 토큰에 `instagram_basic`, `instagram_manage_insights`, `pages_show_list`, `pages_read_engagement` 권한
+    (기존 `META_ACCESS_TOKEN`을 그대로 쓰거나 `INSTAGRAM_ACCESS_TOKEN` 시크릿을 따로)
+  - 스레드: `THREADS_ACCESS_TOKEN` 시크릿(장기 토큰, 60일) — 7일마다 자동 갱신해 다음 실행에 이어 씀
+- 기획 없이 올린 게시물은 캘린더에 점선으로 보이고, 눌러서 바로 기획 항목으로 등록할 수 있습니다.

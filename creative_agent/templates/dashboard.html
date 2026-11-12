@@ -82,6 +82,45 @@ body{margin:0;background:var(--bg);color:var(--text);font:13px/1.5 -apple-system
 .pop button{border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit;font-size:12px;border-radius:14px;padding:3px 10px;cursor:pointer}
 .pop button b{color:var(--sub);font-weight:500;margin-left:4px}
 .pop button.on{border-color:var(--info);color:var(--info)}
+/* 콘텐츠 캘린더 */
+.cal-top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+.cal-top .m{font-size:15px;font-weight:700;min-width:120px;text-align:center}
+.cal-top button.nav{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:7px;padding:5px 10px;cursor:pointer}
+.cal-add{font:inherit;font-size:12.5px;font-weight:600;border:0;border-radius:7px;padding:7px 12px;background:var(--accent);color:#fff;cursor:pointer}
+.cal-add:disabled{opacity:.5;cursor:default}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cal-grid .dow{font-size:11px;color:var(--sub);text-align:center;padding:6px 0;background:var(--bg);border-bottom:1px solid var(--line)}
+.cal-day{min-height:112px;border-right:1px solid var(--line2);border-bottom:1px solid var(--line2);padding:4px 5px 6px;cursor:pointer;min-width:0}
+.cal-day:nth-child(7n+7){border-right:0}
+.cal-day.out{background:var(--bg);opacity:.55}
+.cal-day .dn{font-size:11.5px;color:var(--sub);margin-bottom:3px;display:flex;justify-content:space-between}
+.cal-day.today .dn b{background:var(--accent);color:#fff;border-radius:10px;padding:0 6px}
+.cal-day:hover{background:var(--line2)}
+.pill{display:block;font-size:11px;line-height:1.35;border-radius:5px;padding:3px 5px 3px 7px;margin-bottom:3px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--c);overflow:hidden;cursor:pointer}
+.pill .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.pill .p{color:var(--sub);font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pill.post{border-style:dashed;border-left-style:solid;opacity:.85}
+.pill.st-기획{background:var(--bg)}
+.pill.st-보류{opacity:.5;text-decoration:line-through}
+.cal-legend{display:flex;flex-wrap:wrap;gap:6px}
+.cal-legend button{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:14px;padding:3px 10px 3px 8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.cal-legend button i{width:9px;height:9px;border-radius:50%;background:var(--c);display:inline-block}
+.cal-legend button.off{opacity:.4}
+.cal-list{display:none}
+@media (max-width:700px){.cal-grid{display:none}.cal-list{display:block}}
+.cal-list .ld{font-size:12px;color:var(--sub);margin:12px 0 4px;font-weight:600}
+dialog.cal-dlg{border:1px solid var(--line);border-radius:14px;padding:0;background:var(--card);color:var(--text);width:min(460px,calc(100vw - 32px))}
+dialog.cal-dlg::backdrop{background:rgba(0,0,0,.35)}
+.cal-dlg form{padding:20px;display:flex;flex-direction:column;gap:10px}
+.cal-dlg label{font-size:12px;color:var(--sub);display:flex;flex-direction:column;gap:4px}
+.cal-dlg input,.cal-dlg select,.cal-dlg textarea{font:inherit;font-size:13px;color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.cal-dlg textarea{min-height:80px;resize:vertical}
+.cal-dlg .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cal-dlg .acts{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.cal-dlg .acts button{font:inherit;font-size:13px;border-radius:8px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--text)}
+.cal-dlg .acts .save{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.cal-dlg .acts .del{margin-right:auto;color:var(--bad)}
+.cal-dlg .perf{font-size:12px;background:var(--bg);border-radius:8px;padding:8px 10px}
 .warn{font-size:12px;background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 12px;margin-top:12px}
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:16px}
 h1{font-size:20px;margin:0 0 2px}
@@ -184,6 +223,7 @@ tbody tr.row:hover{background:var(--line2)}
   <a href="#sec-creative" data-sec="sec-creative">광고 소재 <small>메타</small></a>
   <a href="#sec-channels" data-sec="sec-channels" id="nav-channels" hidden>유입 채널 <small>앰플리튜드</small></a>
   <a href="#sec-accounts" data-sec="sec-accounts" id="nav-accounts" hidden>가입 계정 <small id="nav-acc-n"></small></a>
+  <a href="#sec-cal" data-sec="sec-cal" id="nav-cal" hidden>콘텐츠 캘린더 <small>기획·성과</small></a>
   <a href="#sec-comp" data-sec="sec-comp" id="nav-comp" hidden>경쟁사 광고 <small>참고</small></a>
   <div class="foot-note">매일 아침 자동 갱신<br><span id="gen-side"></span></div>
 </nav>
@@ -256,6 +296,54 @@ tbody tr.row:hover{background:var(--line2)}
       <div class="tbl-wrap" style="margin-top:14px"><table id="um-table" style="min-width:480px"></table></div>
     </section>
   </div>
+
+  <div id="cal-wrap" hidden>
+    <h2 class="sec-title" id="sec-cal">콘텐츠 캘린더</h2>
+    <section class="card">
+      <h2>채널별 콘텐츠 기획 · 성과</h2>
+      <div class="desc" id="cal-desc"></div>
+      <div class="cal-top">
+        <button class="nav" id="cal-prev" aria-label="이전 달">◀</button>
+        <div class="m" id="cal-month"></div>
+        <button class="nav" id="cal-next" aria-label="다음 달">▶</button>
+        <button class="nav" id="cal-today">오늘</button>
+        <span class="spacer"></span>
+        <div class="cal-legend" id="cal-legend"></div>
+        <button class="cal-add" id="cal-add">+ 콘텐츠 추가</button>
+      </div>
+      <div class="warn" id="cal-warn" hidden></div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div class="cal-list" id="cal-list"></div>
+      <div class="note">점선 = 기획 없이 올라간 게시물(눌러서 캘린더에 등록) · 날짜 칸을 누르면 그날 콘텐츠를 추가합니다 · 성과는 자동 갱신 때(2시간마다) 붙습니다</div>
+    </section>
+    <section class="card">
+      <h2 id="cal-sum-title">이번 달 채널별 요약</h2>
+      <div class="tbl-wrap" style="margin-top:12px"><table id="cal-sum" style="min-width:620px"></table></div>
+    </section>
+  </div>
+
+  <dialog class="cal-dlg" id="cal-dlg">
+    <form method="dialog" id="cal-form">
+      <h2 style="margin:0;font-size:15px" id="cal-dlg-title">콘텐츠</h2>
+      <div class="row">
+        <label>날짜<input type="date" name="date" required></label>
+        <label>채널<select name="channel"></select></label>
+      </div>
+      <label>제목<input name="title" maxlength="200" required placeholder="예: 경쟁사 신상 TOP5 카드뉴스"></label>
+      <div class="row">
+        <label>상태<select name="status"><option>기획</option><option>제작 중</option><option>예약</option><option>게시 완료</option><option>보류</option></select></label>
+        <label>링크<input name="link" maxlength="500" placeholder="게시물 URL 또는 광고 이름"></label>
+      </div>
+      <label>메모<textarea name="memo" maxlength="3000" placeholder="카피, 레퍼런스, 담당자 등"></textarea></label>
+      <div class="perf" id="cal-dlg-perf" hidden></div>
+      <div class="note" id="cal-dlg-note"></div>
+      <div class="acts">
+        <button type="button" class="del" id="cal-del">삭제</button>
+        <button type="button" id="cal-cancel">닫기</button>
+        <button type="submit" class="save" id="cal-save">저장</button>
+      </div>
+    </form>
+  </dialog>
 
   <div id="acc-wrap" hidden>
     <h2 class="sec-title" id="sec-accounts">가입 계정</h2>
@@ -386,6 +474,142 @@ if (AMP) {
       <td>${M.signups ? pct(M.trials / M.signups, 0) : '—'}</td><td>${int(M.activated)}</td><td>${M.trials ? pct(M.activated / M.trials, 0) : '—'}</td>${paidCells(M)}</tr>
     <tr class="total"><td class="l">전체 합계</td><td>${int(T.signups)}</td><td>100%</td><td>${int(T.trials)}</td>
       <td>${T.signups ? pct(T.trials / T.signups, 0) : '—'}</td><td>${int(T.activated)}</td><td>${T.trials ? pct(T.activated / T.trials, 0) : '—'}</td>${paidCells(T)}</tr></tbody>`;
+}
+
+// ── 콘텐츠 캘린더 (기간 선택과 무관, 한 번만 초기화) ──
+if (D.calendar && !window.__calInit) {
+  window.__calInit = true;
+  const CAL = D.calendar;
+  const CHN = {instagram: ['공식 인스타', '#d6249f'], threads: ['스레드', '#6b7180'], ad: ['광고', '#2759c4'], other: ['기타', '#b4570b']};
+  const k = v => v == null ? '—' : v >= 10000 ? (v / 10000).toFixed(1) + '만' : v >= 1000 ? (v / 1000).toFixed(1) + '천' : String(Math.round(v));
+  const perfTxt = p => !p ? '' : p.kind === 'instagram' ? `도달 ${k(p.reach)} · 좋아요 ${k(p.likes)} · 저장 ${k(p.saved)}`
+    : p.kind === 'threads' ? `조회 ${k(p.views)} · 좋아요 ${k(p.likes)} · 답글 ${k(p.replies)}`
+    : p.kind === 'ad' ? `광고비 ${won(p.spend)} · 랜딩 ${k(p.conversions)}${p.signups != null ? ' · 가입 ' + k(p.signups) : ''}` : '';
+  const postPerf = x => perfTxt({kind: x.channel, ...x.metrics});
+  let items = (CAL.items || []).slice(), sha = null, editable = false;
+  const off = new Set();
+  const today = new Date(); const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  let cur = new Date(today.getFullYear(), today.getMonth(), 1);
+  document.getElementById('nav-cal').hidden = false;
+  document.getElementById('cal-wrap').hidden = false;
+  const st = CAL.status || {};
+  const stTxt = ch => st[ch] === 'ok' ? '연결됨' : st[ch] === '토큰 없음' ? '연결 전' : st[ch] ? '확인 필요' : '—';
+  $('#cal-desc').textContent = `성과 연결: 공식 인스타 ${stTxt('instagram')} · 스레드 ${stTxt('threads')} · 광고 연결됨 · ${D.generated_at} 기준`;
+  const warn = m => { $('#cal-warn').hidden = !m; $('#cal-warn').textContent = m || ''; };
+  const issues = ['instagram', 'threads'].filter(ch => st[ch] && st[ch] !== 'ok' && st[ch] !== '토큰 없음').map(ch => `${CHN[ch][0]}: ${st[ch]}`);
+
+  const fill = (sel, opts) => sel.innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const form = $('#cal-form'), dlg = $('#cal-dlg');
+  fill(form.channel, Object.entries(CHN).map(([v, [l]]) => [v, l]));
+
+  const render = () => {
+    $('#cal-month').textContent = `${cur.getFullYear()}년 ${cur.getMonth() + 1}월`;
+    $('#cal-legend').innerHTML = Object.entries(CHN).map(([c, [l, col]]) => `<button data-ch="${c}" class="${off.has(c)?'off':''}" style="--c:${col}"><i></i>${l}</button>`).join('');
+    const first = new Date(cur), start = new Date(first); start.setDate(1 - first.getDay());
+    const days = []; for (let i = 0; i < 42; i++) { const d = new Date(start); d.setDate(start.getDate() + i); days.push(d); }
+    const lastRowNeeded = days.slice(35).some(d => d.getMonth() === cur.getMonth()); if (!lastRowNeeded) days.length = 35;
+    const vis = it => !off.has(it.channel);
+    const byDate = {}; items.filter(vis).forEach(it => (byDate[it.date] = byDate[it.date] || []).push(it));
+    const postsBy = {}; (CAL.posts || []).filter(x => !off.has(x.channel)).forEach(x => (postsBy[x.date] = postsBy[x.date] || []).push(x));
+    const pill = it => { const p = (CAL.perf || {})[it.id]; return `<span class="pill st-${esc(it.status)}" data-id="${esc(it.id)}" style="--c:${CHN[it.channel][1]}" title="${esc(it.title)} · ${esc(it.status)}">
+      <div class="t">${esc(it.title || '(제목 없음)')}</div><div class="p">${p ? esc(perfTxt(p)) : esc(it.status)}</div></span>`; };
+    const ppill = x => `<span class="pill post" data-post="${esc(x.id)}" style="--c:${CHN[x.channel][1]}" title="기획 없이 올라간 게시물 — 눌러서 캘린더에 등록">
+      <div class="t">${esc(x.text || '게시물')}</div><div class="p">${esc(postPerf(x))}</div></span>`;
+    $('#cal-grid').innerHTML = ['일','월','화','수','목','금','토'].map(d => `<div class="dow">${d}</div>`).join('') + days.map(d => {
+      const key = ymd(d);
+      return `<div class="cal-day ${d.getMonth() !== cur.getMonth() ? 'out' : ''} ${key === ymd(today) ? 'today' : ''}" data-date="${key}">
+        <div class="dn"><b>${d.getDate()}</b></div>${(byDate[key] || []).map(pill).join('')}${(postsBy[key] || []).map(ppill).join('')}</div>`;
+    }).join('');
+    // 휴대폰: 목록형
+    const monthKeys = days.filter(d => d.getMonth() === cur.getMonth()).map(ymd);
+    $('#cal-list').innerHTML = monthKeys.filter(key => byDate[key] || postsBy[key]).map(key => `<div class="ld">${key.slice(5).replace('-', '/')} (${'일월화수목금토'[new Date(key).getDay()]})</div>
+      ${(byDate[key] || []).map(pill).join('')}${(postsBy[key] || []).map(ppill).join('')}`).join('') || '<div class="empty">이번 달 콘텐츠가 없습니다</div>';
+    // 이번 달 요약
+    const inMonth = s => s.startsWith(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`);
+    $('#cal-sum-title').textContent = `${cur.getMonth() + 1}월 채널별 요약`;
+    const rows = Object.entries(CHN).map(([c, [l]]) => {
+      const its = items.filter(it => it.channel === c && inMonth(it.date));
+      const done = its.filter(it => it.status === '게시 완료').length;
+      const perfs = its.map(it => (CAL.perf || {})[it.id]).filter(Boolean);
+      const extra = (CAL.posts || []).filter(x => x.channel === c && inMonth(x.date));
+      const sum = key => perfs.reduce((s, p) => s + (+p[key] || 0), 0) + extra.reduce((s, x) => s + (+x.metrics[key] || 0), 0);
+      const main = c === 'instagram' ? `도달 ${k(sum('reach'))} · 좋아요 ${k(sum('likes'))} · 저장 ${k(sum('saved'))}`
+        : c === 'threads' ? `조회 ${k(sum('views'))} · 좋아요 ${k(sum('likes'))} · 답글 ${k(sum('replies'))}`
+        : c === 'ad' ? `광고비 ${won(sum('spend'))} · 랜딩 ${k(sum('conversions'))} · 가입 ${k(sum('signups'))}` : '—';
+      return `<tr><td class="l"><span class="dot" style="background:${CHN[c][1]}"></span>${l}</td><td>${its.length}</td><td>${done}</td><td>${its.length - done}</td><td>${extra.length}</td><td class="l">${main}</td></tr>`;
+    }).join('');
+    $('#cal-sum').innerHTML = `<thead><tr><th class="l">채널</th><th>기획</th><th>게시 완료</th><th>남은 기획</th><th>기획 없이 게시</th><th class="l">성과 합계</th></tr></thead><tbody>${rows}</tbody>`;
+  };
+
+  const openDlg = (it, isNew) => {
+    form.reset();
+    form.date.value = it.date; form.channel.value = it.channel || 'instagram'; form.title.value = it.title || '';
+    form.status.value = it.status || '기획'; form.link.value = it.link || ''; form.memo.value = it.memo || '';
+    form.dataset.id = isNew ? '' : it.id;
+    $('#cal-dlg-title').textContent = isNew ? '콘텐츠 추가' : '콘텐츠 수정';
+    $('#cal-del').hidden = isNew || !editable;
+    $('#cal-save').hidden = !editable;
+    [...form.elements].forEach(el => { if (el.name) el.disabled = !editable; });
+    const p = !isNew && (CAL.perf || {})[it.id];
+    $('#cal-dlg-perf').hidden = !p;
+    if (p) $('#cal-dlg-perf').innerHTML = `<b>성과</b> · ${esc(perfTxt(p))}${p.auto ? ' <span class="desc">(같은 날 게시물과 자동 연결 — 링크를 넣으면 정확해요)</span>' : ''}${p.permalink ? ` · <a href="${esc(p.permalink)}" target="_blank" rel="noopener">게시물 보기 ↗</a>` : ''}`;
+    $('#cal-dlg-note').textContent = editable ? '링크: 인스타·스레드는 게시물 주소, 광고는 광고 이름(또는 ID)을 넣으면 성과가 정확히 연결됩니다'
+      : '보기 전용입니다 — 공유된 대시보드 주소에서 열면 편집할 수 있어요';
+    dlg.showModal();
+  };
+
+  const save = async next => {
+    const prev = items; items = next; render();
+    try {
+      const r = await fetch('/api/calendar', {method: 'PUT', headers: {'content-type': 'application/json', 'x-dashboard-password': window.__dashPw},
+                                              body: JSON.stringify({items: next, sha})});
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 409) { await load(); warn('다른 사람이 먼저 수정했어요 — 최신 내용으로 다시 불러왔습니다. 방금 바꾼 내용은 다시 입력해 주세요.'); return; }
+      if (!r.ok) throw new Error(j.error || r.status);
+      sha = j.sha; items = j.items || next; warn(issues.length ? issues.join(' · ') : ''); render();
+    } catch (e) { items = prev; render(); warn('저장하지 못했어요: ' + e.message); }
+  };
+
+  form.onsubmit = e => {
+    e.preventDefault();
+    const id = form.dataset.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()));
+    const it = {id, date: form.date.value, channel: form.channel.value, title: form.title.value.trim(),
+                status: form.status.value, link: form.link.value.trim(), memo: form.memo.value};
+    const next = form.dataset.id ? items.map(x => x.id === id ? it : x) : [...items, it];
+    dlg.close(); save(next);
+  };
+  $('#cal-del').onclick = () => { const id = form.dataset.id; if (id && confirm('이 콘텐츠를 삭제할까요?')) { dlg.close(); save(items.filter(x => x.id !== id)); } };
+  $('#cal-cancel').onclick = () => dlg.close();
+  $('#cal-prev').onclick = () => { cur = new Date(cur.getFullYear(), cur.getMonth() - 1, 1); render(); };
+  $('#cal-next').onclick = () => { cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1); render(); };
+  $('#cal-today').onclick = () => { cur = new Date(today.getFullYear(), today.getMonth(), 1); render(); };
+  $('#cal-legend').onclick = e => { const b = e.target.closest('[data-ch]'); if (b) { off.has(b.dataset.ch) ? off.delete(b.dataset.ch) : off.add(b.dataset.ch); render(); } };
+  $('#cal-add').onclick = () => openDlg({date: ymd(today), channel: 'instagram'}, true);
+  const onClick = e => {
+    const pl = e.target.closest('.pill[data-id]');
+    if (pl) { const it = items.find(x => x.id === pl.dataset.id); if (it) openDlg(it, false); return; }
+    const pp = e.target.closest('.pill[data-post]');
+    if (pp) { const x = (CAL.posts || []).find(p => p.id === pp.dataset.post);
+      if (x) openDlg({date: x.date, channel: x.channel, title: (x.text || '').slice(0, 60), status: '게시 완료', link: x.permalink || ''}, true); return; }
+    const day = e.target.closest('.cal-day');
+    if (day && editable) openDlg({date: day.dataset.date, channel: 'instagram'}, true);
+  };
+  $('#cal-grid').onclick = onClick; $('#cal-list').onclick = onClick;
+
+  const load = async () => {
+    if (!window.__dashPw || !/^https?:/.test(location.protocol)) {
+      editable = false; $('#cal-add').disabled = true;
+      warn('이 화면은 보기 전용이에요 — 공유된 대시보드 주소(비밀번호로 여는 화면)에서 기획을 추가·수정할 수 있어요.'); render(); return;
+    }
+    try {
+      const r = await fetch('/api/calendar', {headers: {'x-dashboard-password': window.__dashPw}});
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 503) { editable = false; $('#cal-add').disabled = true; warn('기획 저장 기능 설정이 아직 안 됐어요 (GitHub 시크릿 CALENDAR_GH_TOKEN 필요). 지금은 보기 전용입니다.'); render(); return; }
+      if (!r.ok) throw new Error(j.error || r.status);
+      items = j.items || []; sha = j.sha; editable = true; $('#cal-add').disabled = false; warn(issues.join(' · ')); render();
+    } catch (e) { editable = false; $('#cal-add').disabled = true; warn('기획을 불러오지 못했어요(' + e.message + ') — 마지막 갱신 때 내용으로 보여드려요.'); render(); }
+  };
+  render(); load();
 }
 
 // ── 가입 계정 (기간 선택과 무관하게 항상 최근 30일) ──
@@ -666,7 +890,7 @@ function start(B) {
   const show = k => {
     const v = views.find(x => keyOf(x) === k) || views[0];
     boot({...v, thumbs: B.thumbs || v.thumbs || {}, generated_at: B.generated_at || v.generated_at,
-          competitors: B.competitors || null, accounts: B.accounts || null});
+          competitors: B.competitors || null, accounts: B.accounts || null, calendar: B.calendar || null});
   };
   sel.onchange = () => { try { localStorage.setItem(KEYR, sel.value); } catch (e) {} show(sel.value); };
   show(cur);
@@ -691,6 +915,7 @@ function start(B) {
   async function open(pw, save) {
     const D = await decrypt(RAW.enc, pw);
     try { save ? localStorage.setItem(KEY, pw) : localStorage.removeItem(KEY); } catch (e) {}
+    window.__dashPw = pw;  // 캘린더 저장 API 인증용 (메모리에만)
     lock.hidden = true; app.hidden = false;
     start(D);
   }

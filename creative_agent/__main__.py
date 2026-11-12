@@ -163,6 +163,15 @@ def main() -> None:
     if comp:
         rep["thumbs"].update(comp.pop("thumbs"))
         rep["competitors"] = comp
+    from . import content_calendar
+    print("⑦ 콘텐츠 캘린더 (기획 + 인스타·스레드·광고 성과)")
+    if a.cmd == "demo":
+        from . import demo
+        rep["calendar"] = demo.fake_calendar(default)
+    else:
+        rep["calendar"] = content_calendar.build(default, live=True)
+    print(f"   기획 {len(rep['calendar']['items'])}개 · 성과 연결 {len(rep['calendar']['perf'])}개 · "
+          f"기획 없는 게시물 {len(rep['calendar']['posts'])}개")
     if use_amp:
         print("⑥ 가입 계정별 활동 (Amplitude Export)")
         rep["accounts"] = amplitude.accounts(30)
