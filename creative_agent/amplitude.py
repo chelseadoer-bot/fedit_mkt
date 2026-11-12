@@ -291,13 +291,13 @@ ACTION_LABELS = {
 }
 
 
-def _export_range(start: str, end: str) -> list[dict]:
+def _export_range(start: str, end: str, read_timeout: int = 240) -> list[dict]:
     """Export API 한 번 호출(start/end = YYYYMMDDTHH, UTC). 데이터 없으면 []."""
     content, status = None, None
     for attempt in range(2):
         try:
             with requests.get(f"{_base()}/api/2/export", params={"start": start, "end": end},
-                              auth=(API_KEY, SECRET_KEY), timeout=(30, 240), stream=True) as r:
+                              auth=(API_KEY, SECRET_KEY), timeout=(30, read_timeout), stream=True) as r:
                 status = r.status_code
                 if r.ok:
                     content = b"".join(r.iter_content(1 << 20))
@@ -332,7 +332,7 @@ def _export_day(day: _date, cache_dir) -> list[dict]:
         slim, failed = [], 0
         for h0, h1 in ((0, 5), (6, 11), (12, 17), (18, 23)):
             try:
-                slim += _export_range(f"{day:%Y%m%d}T{h0:02d}", f"{day:%Y%m%d}T{h1:02d}")
+                slim += _export_range(f"{day:%Y%m%d}T{h0:02d}", f"{day:%Y%m%d}T{h1:02d}", read_timeout=90)
             except (AmplitudeError, requests.RequestException, zipfile.BadZipFile) as e:
                 failed += 1
                 print(f"  ⚠️ {day} {h0:02d}~{h1:02d}시(UTC) 받기 실패 — 건너뜀 ({str(e)[:80]})")
@@ -379,15 +379,21 @@ def _recent_user_ids(cache_dir) -> list[str]:
     return list(saved)
 
 
-def _live_activity(user_id: str) -> list[dict]:
+_AMP_IDS: dict = {}
+
+
+def _live_activity(user_id: str, amp_id=None) -> list[dict]:
     """User Activity API로 한 사용자의 최근 이벤트를 실시간에 가깝게 가져온다."""
-    r = requests.get(f"{_base()}/api/2/usersearch", params={"user": user_id}, auth=(API_KEY, SECRET_KEY), timeout=60)
-    if not r.ok:
-        raise AmplitudeError(f"usersearch {r.status_code}")
-    matches = r.json().get("matches") or []
-    if not matches:
-        return []
-    amp_id = matches[0].get("amplitude_id")
+    amp_id = amp_id or _AMP_IDS.get(user_id)
+    if not amp_id:
+        r = requests.get(f"{_base()}/api/2/usersearch", params={"user": user_id}, auth=(API_KEY, SECRET_KEY), timeout=60)
+        if not r.ok:
+            raise AmplitudeError(f"usersearch {r.status_code}")
+        matches = r.json().get("matches") or []
+        if not matches:
+            return []
+        amp_id = matches[0].get("amplitude_id")
+        _AMP_IDS[user_id] = amp_id
     r = requests.get(f"{_base()}/api/2/useractivity", params={"user": amp_id, "limit": 1000},
                      auth=(API_KEY, SECRET_KEY), timeout=60)
     if not r.ok:
@@ -445,14 +451,26 @@ def accounts(days: int = 30) -> dict | None:
                     print(f"  ⚠️ {day} 원본 이벤트 받기 실패 — 그날만 건너뜀 ({err})")
             else:
                 events += evs
-    # 방금 가입·체험한 사용자는 원본 데이터 지연(1~2시간)을 기다리지 않고 실시간 API로 보충
-    recent = _recent_user_ids(cache_dir)
+    # 최근 활동은 원본 내려받기(지연·시간 초과가 잦음) 대신 계정별 실시간 활동 API로 보충:
+    # 웹훅으로 들어온 방금 가입자 + 이미 아는 가입 계정 전부 (amplitude_id는 캐시)
+    rules0 = _exclude_rules()
+    ids_file = cache_dir / "amp_ids.json"
+    if ids_file.exists():
+        _AMP_IDS.update(json.loads(ids_file.read_text(encoding="utf-8")))
+    known = {}
+    for e in events:
+        uid = e.get("user_id")
+        if uid and not _excluded(str(uid), rules0):
+            known[str(uid)] = known.get(str(uid)) or e.get("amplitude_id")
+            if e.get("amplitude_id"):
+                _AMP_IDS.setdefault(str(uid), e.get("amplitude_id"))
+    recent = list(dict.fromkeys(_recent_user_ids(cache_dir) + list(known)))[:150]
     if recent:
         seen = {(e.get("user_id"), e.get("event_type"), e.get("event_time")) for e in events}
         added = 0
         for uid in recent:
             try:
-                for e in _live_activity(uid):
+                for e in _live_activity(uid, _AMP_IDS.get(uid)):
                     k = (e.get("user_id"), e.get("event_type"), e.get("event_time"))
                     if k not in seen:
                         seen.add(k)
@@ -460,7 +478,8 @@ def accounts(days: int = 30) -> dict | None:
                         added += 1
             except (AmplitudeError, requests.RequestException, ValueError) as e:
                 print(f"  ⚠️ 실시간 활동 조회 실패 ({str(e)[:80]})")
-        print(f"   방금 들어온 사용자 {len(recent)}명 실시간 보충 — 이벤트 {added}개 추가")
+        ids_file.write_text(json.dumps(_AMP_IDS), encoding="utf-8")
+        print(f"   계정 {len(recent)}명 실시간 활동 보충 — 이벤트 {added}개 추가")
     if missing:
         print(f"   못 받은 날 {len(missing)}일 — 다음 실행 때 다시 시도합니다")
     if not events and missing:
