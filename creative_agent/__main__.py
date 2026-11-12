@@ -84,22 +84,36 @@ def main() -> None:
     con = db.connect()
     if a.cmd == "demo":
         since, until = __import__("creative_agent.demo", fromlist=["seed"]).seed(con)
+        meta_error = None
         use_ai = a.ai
     else:
         until = a.until or str(date.today() - timedelta(days=1))
         since = a.since or str(date.fromisoformat(until) - timedelta(days=a.days - 1))
         use_ai = not a.no_ai
+        meta_error = None
         if not a.skip_collect:
             if not (config.META_ACCESS_TOKEN and config.META_AD_ACCOUNT_ID):
                 sys.exit("META_ACCESS_TOKEN / META_AD_ACCOUNT_ID 를 .env 에 설정하세요 (.env.example 참고)")
             from . import meta_api
-            print(f"① Meta 인사이트 수집 {since} ~ {until}")
-            print(f"   {meta_api.fetch_insights(con, date.fromisoformat(since), date.fromisoformat(until))}행")
-            print("② 소재 이미지 수집")
+            import json as _json
+            status_file = config.DATA_DIR / "meta_status.json"
             try:
-                print(f"   새 이미지 {meta_api.fetch_creatives(con)}개")
-            except meta_api.MetaAPIError as e:  # 이미지 일부를 못 받아도 분석·배포는 계속
-                print(f"   ⚠️ 소재 이미지 수집 중단: {e} — 이미 받은 이미지로 계속 진행합니다")
+                print(f"① Meta 인사이트 수집 {since} ~ {until}")
+                print(f"   {meta_api.fetch_insights(con, date.fromisoformat(since), date.fromisoformat(until))}행")
+                print("② 소재 이미지 수집")
+                try:
+                    print(f"   새 이미지 {meta_api.fetch_creatives(con)}개")
+                except meta_api.MetaAPIError as e:  # 이미지 일부를 못 받아도 분석·배포는 계속
+                    print(f"   ⚠️ 소재 이미지 수집 중단: {e} — 이미 받은 이미지로 계속 진행합니다")
+                from datetime import datetime as _dt, timezone as _tz
+                status_file.parent.mkdir(parents=True, exist_ok=True)
+                status_file.write_text(_json.dumps({"last_success": _dt.now(_tz(timedelta(hours=9))).strftime("%Y-%m-%d %H:%M")}),
+                                       encoding="utf-8")
+            except meta_api.MetaAPIError as e:
+                # 메타가 막혀도 앰플리튜드·계정·캘린더는 계속 갱신 — 메타 숫자는 마지막으로 받은 데이터 사용
+                last = _json.loads(status_file.read_text(encoding="utf-8")).get("last_success") if status_file.exists() else None
+                meta_error = {"message": str(e), "last_success": last}
+                print(f"   ⚠️ 메타 데이터 수집 실패 — 마지막으로 받은 데이터({last or '알 수 없음'})로 계속 진행: {e}")
         from . import labeler
         print("③ Claude 이미지 라벨링 (새 이미지만)")
         print(f"   {labeler.label_pending(con)}개 라벨링")
@@ -160,6 +174,9 @@ def main() -> None:
                 cache.write_text(_json.dumps({"date": kst_today, "summary": default["ai_summary"]}, ensure_ascii=False),
                                  encoding="utf-8")
     rep = report.bundle(views, default["key"])
+    rep["warnings"] = ([f"메타 광고 데이터 갱신 실패 — 광고 숫자는 마지막으로 받은 데이터"
+                        f"({meta_error['last_success'] or '이전 실행'}) 기준입니다. 원인: {meta_error['message'][:160]}"]
+                       if meta_error else [])
     if comp:
         rep["thumbs"].update(comp.pop("thumbs"))
         rep["competitors"] = comp

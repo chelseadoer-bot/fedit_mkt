@@ -236,6 +236,7 @@ tbody tr.row:hover{background:var(--line2)}
     <select class="period" id="range" aria-label="기간 선택"></select>
   </header>
 
+  <div class="warn" id="top-warn" hidden style="margin:0 0 14px"></div>
   <h2 class="sec-title" id="sec-overview">개요</h2>
   <div class="kpis" id="kpis"></div>
 
@@ -423,6 +424,8 @@ const n1 = v => (v >= 10 || v === 0 || Number.isInteger(v)) ? int(v) : v.toFixed
 })();
 $('#gen').textContent = D.generated_at;
 $('#gen-side').textContent = D.generated_at + ' 기준';
+$('#top-warn').hidden = !(D.warnings && D.warnings.length);
+$('#top-warn').textContent = (D.warnings || []).join(' · ');
 
 // ── 퍼널 ──
 $('#funnel-card').hidden = true; $('#funnel-warn').hidden = true;
@@ -890,7 +893,8 @@ function start(B) {
   const show = k => {
     const v = views.find(x => keyOf(x) === k) || views[0];
     boot({...v, thumbs: B.thumbs || v.thumbs || {}, generated_at: B.generated_at || v.generated_at,
-          competitors: B.competitors || null, accounts: B.accounts || null, calendar: B.calendar || null});
+          competitors: B.competitors || null, accounts: B.accounts || null, calendar: B.calendar || null,
+          warnings: B.warnings || []});
   };
   sel.onchange = () => { try { localStorage.setItem(KEYR, sel.value); } catch (e) {} show(sel.value); };
   show(cur);

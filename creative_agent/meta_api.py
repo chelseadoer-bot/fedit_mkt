@@ -28,6 +28,8 @@ def _get(url: str, params: dict | None = None) -> dict:
         except ValueError:
             err = {}
         code, msg = err.get("code"), err.get("message", r.text[:300])
+        if err.get("error_subcode") or err.get("type"):
+            msg = f"{msg} (type={err.get('type')}, subcode={err.get('error_subcode')}, trace={err.get('fbtrace_id')})"
         transient = code in RETRY_CODES or err.get("is_transient") or (r.status_code >= 500 and code not in PERMANENT_CODES)
         if transient and attempt < 4:
             wait = 2 ** attempt * 5
